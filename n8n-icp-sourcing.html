@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>n8n Interactive Canvas — Automated ICP Sourcing Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      --bg-canvas: #191919;
+      --bg-dot: #262626;
+      --bg-card: #222222;
+      --bg-subtle: #1d1d1d;
+      --border-main: #333333;
+      --border-hover: #4a4a4a;
+      --text-primary: #e6e5e3;
+      --text-secondary: #a1a09c;
+      --text-muted: #73726e;
+
+      --slate-bg: rgba(148, 180, 211, 0.14);
+      --slate-pill: #94b4d3;
+      --slate-border: rgba(148, 180, 211, 0.3);
+
+      --sand-bg: rgba(217, 181, 113, 0.14);
+      --sand-pill: #d9b571;
+      --sand-border: rgba(217, 181, 113, 0.3);
+
+      --lavender-bg: rgba(177, 162, 202, 0.14);
+      --lavender-pill: #b9a9d4;
+      --lavender-border: rgba(177, 162, 202, 0.32);
+
+      --sage-bg: rgba(126, 178, 149, 0.14);
+      --sage-pill: #8ac2a3;
+      --sage-border: rgba(126, 178, 149, 0.32);
+    }
+
+    body.light-theme {
+      --bg-canvas: #f7f6f3;
+      --bg-dot: #e2e0d8;
+      --bg-card: #ffffff;
+      --bg-subtle: #f1f0ec;
+      --border-main: #e0ded7;
+      --border-hover: #c7c4bc;
+      --text-primary: #2c2c2b;
+      --text-secondary: #5c5b57;
+      --text-muted: #87857f;
+
+      --slate-bg: #eef3f8;
+      --slate-pill: #456b8c;
+      --slate-border: #cddce9;
+
+      --sand-bg: #faf3e6;
+      --sand-pill: #8f6824;
+      --sand-border: #e8d5b5;
+
+      --lavender-bg: #f3f0f9;
+      --lavender-pill: #5e4b80;
+      --lavender-border: #d9d0ea;
+
+      --sage-bg: #eaf4ee;
+      --sage-pill: #2f6f4e;
+      --sage-border: #c1decb;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-canvas);
+      background-image: radial-gradient(var(--bg-dot) 1px, transparent 1px);
+      background-size: 20px 20px;
+      color: var(--text-primary);
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .surface-card { background: var(--bg-card); border: 1px solid var(--border-main); }
+    .badge-slate { background: var(--slate-bg); color: var(--slate-pill); border: 1px solid var(--slate-border); }
+    .badge-sand { background: var(--sand-bg); color: var(--sand-pill); border: 1px solid var(--sand-border); }
+    .badge-lavender { background: var(--lavender-bg); color: var(--lavender-pill); border: 1px solid var(--lavender-border); }
+    .badge-sage { background: var(--sage-bg); color: var(--sage-pill); border: 1px solid var(--sage-border); }
+
+    .tab-btn, .step-pill {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-main);
+      color: var(--text-secondary);
+      transition: all 0.15s ease;
+    }
+    .tab-btn:hover, .step-pill:hover { color: var(--text-primary); border-color: var(--border-hover); }
+    .step-pill.active {
+      background: var(--slate-bg);
+      color: var(--slate-pill);
+      border-color: var(--slate-border);
+      font-weight: 600;
+    }
+
+    #viewport {
+      position: relative;
+      width: 100%;
+      max-height: 520px;
+      min-height: 220px;
+      overflow: auto;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-main);
+      background-color: #f4f4f4;
+      background-image: radial-gradient(#dcdcdc 1px, transparent 1px);
+      background-size: 14px 14px;
+      cursor: zoom-in;
+      user-select: none;
+    }
+    #viewport.is-zoomed { cursor: grab; }
+    #viewport.is-dragging { cursor: grabbing !important; }
+    #zoom-stage { position: relative; width: 100%; transition: width 0.22s ease; }
+    #viewport::-webkit-scrollbar { width: 8px; height: 8px; }
+    #viewport::-webkit-scrollbar-track { background: #e5e5e5; }
+    #viewport::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+
+    .hotspot-pin {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      width: 30px;
+      height: 30px;
+      border-radius: 9999px;
+      background: #222222;
+      color: #e6e5e3;
+      border: 2px solid #94b4d3;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 20;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+      transition: all 0.2s ease;
+    }
+    .hotspot-pin:hover { transform: translate(-50%, -50%) scale(1.15); }
+    .hotspot-pin.active {
+      background: #456b8c;
+      color: #ffffff;
+      border-color: #ffffff;
+      transform: translate(-50%, -50%) scale(1.22);
+      box-shadow: 0 0 0 5px rgba(148, 180, 211, 0.38), 0 6px 16px rgba(0, 0, 0, 0.5);
+    }
+
+    .sticky-mask {
+      position: absolute;
+      background-color: #f4f4f4;
+      background-image: radial-gradient(#dcdcdc 1px, transparent 1px);
+      background-size: 10px 10px;
+      border-radius: 4px;
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+
+  <div class="w-full max-w-5xl flex flex-col gap-5">
+
+    <!-- 1. TOP OVERVIEW TAB -->
+    <div class="surface-card rounded-xl p-5 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5" style="border-bottom: 1px solid var(--border-main);">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <span class="mono text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-md badge-lavender font-medium">
+              n8n Workflow • CRM Deal Mining &amp; AI ICP Synthesis
+            </span>
+            <span class="text-xs" style="color: var(--text-muted);">Double-click image or click any pin to zoom into nodes</span>
+          </div>
+          <h1 class="text-lg md:text-xl font-semibold mt-1.5" style="color: var(--text-primary);">
+            Automated ICP Sourcing from HubSpot Won &amp; Lost Deals
+          </h1>
+        </div>
+
+        <div class="flex items-center gap-2 self-start sm:self-center shrink-0">
+          <button onclick="stepPin(-1)" class="mono text-xs px-2.5 py-1.5 rounded-lg tab-btn">&larr; Prev Pin</button>
+          <button onclick="stepPin(1)" class="mono text-xs px-2.5 py-1.5 rounded-lg tab-btn">Next Pin &rarr;</button>
+          <button onclick="toggleTheme()" id="themeBtn" class="mono text-xs px-3 py-1.5 rounded-lg tab-btn">☀️ Paper</button>
+        </div>
+      </div>
+
+      <p class="text-xs md:text-sm mt-3.5 leading-relaxed" style="color: var(--text-secondary);">
+        <strong style="color: var(--text-primary);">How it works:</strong> Extracts historical <strong>Closed-Won</strong> and <strong>Closed-Lost</strong> deals from HubSpot CRM, resolves all associated Company and Contact IDs via HubSpot's v4 Batch Associations API, chunks records into batches of 100 for high-speed batch reading, builds comparative training rows in JavaScript, and uses an <strong>OpenAI Chat Model + Structured Output Parser</strong> to synthesize a data-backed Ideal Customer Profile (ICP) JSON payload.
+      </p>
+    </div>
+
+    <!-- 2. INTERACTIVE ZOOMABLE N8N SCREENSHOT CANVAS -->
+    <div class="surface-card rounded-xl p-3 md:p-4 shadow-sm relative">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2.5" style="border-bottom: 1px solid var(--border-main);">
+        <div class="flex items-center gap-1.5">
+          <span class="mono text-[11px] mr-1" style="color: var(--text-muted);">🔍 Zoom Controls:</span>
+          <button onclick="stepZoom(-0.5)" class="mono text-xs px-2.5 py-1 rounded-md tab-btn font-bold">&minus; Zoom Out</button>
+          <span id="zoom-badge" class="mono text-xs px-2.5 py-1 rounded-md font-semibold badge-slate">100%</span>
+          <button onclick="stepZoom(0.5)" class="mono text-xs px-2.5 py-1 rounded-md tab-btn font-bold">&plus; Zoom In</button>
+          <button onclick="setZoom(2.25)" class="mono text-xs px-2.5 py-1 rounded-md tab-btn">225% (Read Nodes)</button>
+          <button onclick="setZoom(1)" class="mono text-xs px-2.5 py-1 rounded-md tab-btn">Reset 100%</button>
+        </div>
+
+        <label class="flex items-center gap-1.5 cursor-pointer mono text-[11px]" style="color: var(--text-secondary);">
+          <input type="checkbox" id="autoZoomToggle" checked class="rounded">
+          Auto-zoom when clicking a pin
+        </label>
+      </div>
+
+      <div id="viewport" title="Double-click anywhere to zoom in/out, or drag to pan when zoomed">
+        <div id="zoom-stage">
+          <img id="canvas-img" src="ICP%20Sourcing.jpeg" alt="ICP Sourcing n8n Workflow" class="w-full h-auto block select-none pointer-events-none">
+          <div id="img-error-box" class="hidden p-8 text-center mono text-xs" style="color: #222; background: #f4f4f4;"></div>
+          <!-- Sticky Note Mask for top-left yellow note -->
+          <div class="sticky-mask" style="left: 4%; top: 10%; width: 7%; height: 28%;"></div>
+          <div id="pins-container"></div>
+        </div>
+      </div>
+
+      <div id="step-pills-container" class="flex flex-wrap items-center gap-2 mt-3 pt-3" style="border-top: 1px solid var(--border-main);"></div>
+    </div>
+
+    <!-- 3. ACTIVE NODE GROUP INSPECTOR -->
+    <div class="surface-card rounded-xl p-5 shadow-sm" id="inspector-card"></div>
+
+    <!-- 4. EXECUTIVE VALUE & IMPACT BOX -->
+    <div class="surface-card rounded-xl p-5 shadow-sm">
+      <div class="flex items-center justify-between pb-3 mb-4" style="border-bottom: 1px solid var(--border-main);">
+        <span class="mono text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded badge-sage">
+          📊 Workflow Impact &amp; Business Value
+        </span>
+        <span class="mono text-[11px]" style="color: var(--text-muted);">Empirical CRM Intelligence</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="p-4 rounded-xl" style="background: var(--bg-subtle); border: 1px solid var(--border-main);">
+          <div class="mono text-[11px] font-semibold uppercase mb-1.5" style="color: var(--slate-pill);">
+            1. Why Is This Important?
+          </div>
+          <h4 class="text-xs font-semibold mb-1.5" style="color: var(--text-primary);">Replaces Guesswork with CRM Win/Loss Data</h4>
+          <p class="text-xs leading-relaxed" style="color: var(--text-secondary);">
+            Most GTM teams define their Ideal Customer Profile (ICP) based on gut feeling or only look at Won deals—ignoring Lost deals that reveal negative disqualifiers. Contrasting both Won and Lost deal cohorts uncovers what actually drives conversion.
+          </p>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background: var(--bg-subtle); border: 1px solid var(--border-main);">
+          <div class="mono text-[11px] font-semibold uppercase mb-1.5" style="color: var(--lavender-pill);">
+            2. What Value Does It Bring?
+          </div>
+          <h4 class="text-xs font-semibold mb-1.5" style="color: var(--text-primary);">100-Record Batching + Structured AI Schema</h4>
+          <p class="text-xs leading-relaxed" style="color: var(--text-secondary);">
+            Instead of making thousands of single HubSpot API calls that hit rate limits, this workflow chunks Company and Contact IDs into batches of 100 and feeds aggregated firmographic and persona signals into OpenAI with a strict JSON schema parser so parent workflows can consume the ICP directly.
+          </p>
+        </div>
+
+        <div class="p-4 rounded-xl" style="background: var(--bg-subtle); border: 1px solid var(--border-main);">
+          <div class="mono text-[11px] font-semibold uppercase mb-1.5" style="color: var(--sage-pill);">
+            3. How Much Time Does It Save?
+          </div>
+          <h4 class="text-xs font-semibold mb-1.5" style="color: var(--text-primary);">~15–20 Hours of RevOps Analysis per Run</h4>
+          <p class="text-xs leading-relaxed" style="color: var(--text-secondary);">
+            Exporting deals, cross-referencing associated companies and buyer titles across HubSpot objects, and running win/loss statistical breakdowns manually takes days of RevOps analyst time. This sub-workflow executes the entire pipeline in ~20 seconds.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const GITHUB_REPO_API = "https://api.github.com/repos/fichoyas/claude-portfolio/contents/";
+    const flow = {
+      keywords: ["icp", "sourcing"],
+      imgCandidates: [
+        "ICP Sourcing.jpeg",
+        "ICP Sourcing.jpg",
+        "ICP sourcing.jpeg",
+        "ICP Sourcing.png"
+      ],
+      pins: [
+        {
+          id: 1,
+          x: 7.5, y: 52,
+          shortLabel: "1. Subflow Trigger & Init",
+          badge: "Step 1 • Sub-Workflow Trigger + JS Setup",
+          nodes: "When Executed by Another Workflow → Code in JavaScript",
+          inside: "Triggered by an upstream orchestrator workflow. The JavaScript initialization node validates input parameters (such as target pipeline/product line and deal count thresholds) and constructs the HubSpot Search API filter payloads.",
+          output: "Initialized search parameters for Closed-Won and Closed-Lost HubSpot deal queries."
+        },
+        {
+          id: 2,
+          x: 21, y: 52,
+          shortLabel: "2. Won vs. Lost Deal Extraction",
+          badge: "Step 2 • Parallel HubSpot Deal Search",
+          nodes: "[HS Search Deals - Won → Label WON] + [HS Search Deals - Lost → Label Lost] → Merge_Deals",
+          inside: "Executes two parallel HTTP POST requests against https://api.hubapi.com/crm/v3/objects/deals/search to pull Closed-Won and Closed-Lost deals separately, tags each record with its outcome class ('WON' vs 'Lost'), and appends both cohorts in 'Merge_Deals'.",
+          output: "Labeled dataset combining historical Won and Lost HubSpot deal objects."
+        },
+        {
+          id: 3,
+          x: 37.5, y: 52,
+          shortLabel: "3. Sample Threshold & Bundling",
+          badge: "Step 3 • Data Sufficiency Guardrail",
+          nodes: "Ensure enough data → Bundle deals into one object",
+          inside: "'Ensure enough data' (JavaScript) verifies that the retrieved deal sample size is large enough to derive statistically meaningful ICP patterns, then 'Bundle deals into one object' consolidates all deal IDs into a unified array for batch association lookups.",
+          output: "Validated array of Deal IDs ready for bulk Company and Contact association resolution."
+        },
+        {
+          id: 4,
+          x: 50, y: 52,
+          shortLabel: "4. Batch Association Resolution",
+          badge: "Step 4 • HubSpot Batch Associations API",
+          nodes: "[HS Batch Deals → Companies] + [HS Batch Deals → Contacts] → Attach Associations IDs",
+          inside: "Calls HubSpot's Batch Associations endpoints in parallel to resolve which Company IDs and Contact IDs are linked to each Won/Lost deal, then maps the relational graph back together in 'Attach Associations IDs' (JavaScript).",
+          output: "Deal records linked to their exact associated Company IDs and buyer Contact IDs."
+        },
+        {
+          id: 5,
+          x: 65, y: 52,
+          shortLabel: "5. 100-ID Chunking & Batch Read",
+          badge: "Step 5 • High-Throughput Batch Read Engine",
+          nodes: "[Chunk Company ID 100 → HS Companies Batch Read → Companies by ID] + [Chunk Contacts ID 100 → HS Contacts Batch Read → Contacts by ID]",
+          inside: "Splits Company IDs and Contact IDs into 100-item chunks (HubSpot's batch read limit), calls POST /crm/v3/objects/companies/batch/read and /contacts/batch/read to fetch industry, employee count, revenue, job titles, and seniority in bulk, and indexes them by ID.",
+          output: "Complete firmographic company profiles and buyer contact personas indexed by ID."
+        },
+        {
+          id: 6,
+          x: 86, y: 56,
+          shortLabel: "6. AI ICP Synthesis & Payload",
+          badge: "Step 6 • Signal Aggregation + OpenAI Structured Output",
+          nodes: "Build Training Rows → Aggregate ICP Signals → Generate ICP (OpenAI + Structured Output Parser) → Return Payload",
+          inside: "Joins deals, companies, and contacts into training rows, calculates win-rate distributions across industries, company sizes, and job titles in 'Aggregate ICP Signals', and passes the statistical summary to 'Generate ICP' (OpenAI Chat Model + Structured Output Parser) to produce a strict ICP JSON payload.",
+          output: "Final Defined Output: Structured ICP payload (target industries, employee/revenue tiers, buying personas, and disqualifiers)."
+        }
+      ]
+    };
+
+    let currentPinIndex = 0;
+    let zoomLevel = 1;
+    const viewport = document.getElementById('viewport');
+    const zoomStage = document.getElementById('zoom-stage');
+
+    function setZoom(newZoom, focusXPercent = null, focusYPercent = null) {
+      zoomLevel = Math.min(3.5, Math.max(1, +newZoom.toFixed(2)));
+      zoomStage.style.width = `${zoomLevel * 100}%`;
+      document.getElementById('zoom-badge').textContent = `${Math.round(zoomLevel * 100)}%`;
+      viewport.classList.toggle('is-zoomed', zoomLevel > 1);
+
+      if (focusXPercent !== null && focusYPercent !== null && zoomLevel > 1) {
+        setTimeout(() => {
+          const targetLeft = (focusXPercent / 100) * zoomStage.scrollWidth - (viewport.clientWidth / 2);
+          const targetTop = (focusYPercent / 100) * zoomStage.scrollHeight - (viewport.clientHeight / 2);
+          viewport.scrollTo({ left: Math.max(0, targetLeft), top: Math.max(0, targetTop), behavior: 'smooth' });
+        }, 60);
+      } else if (zoomLevel === 1) {
+        viewport.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+      }
+    }
+
+    function stepZoom(delta) {
+      const pin = flow.pins[currentPinIndex];
+      setZoom(zoomLevel + delta, pin ? pin.x : 50, pin ? pin.y : 50);
+    }
+
+    viewport.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      const rect = zoomStage.getBoundingClientRect();
+      const clickX = ((e.clientX - rect.left) / rect.width) * 100;
+      const clickY = ((e.clientY - rect.top) / rect.height) * 100;
+      setZoom(zoomLevel < 2 ? 2.25 : (zoomLevel < 3.2 ? 3.5 : 1), clickX, clickY);
+    });
+
+    let isDragging = false, startX = 0, startY = 0, scrollLeftStart = 0, scrollTopStart = 0;
+    viewport.addEventListener('mousedown', (e) => {
+      if (zoomLevel <= 1 || e.target.closest('.hotspot-pin')) return;
+      isDragging = true;
+      viewport.classList.add('is-dragging');
+      startX = e.pageX - viewport.offsetLeft;
+      startY = e.pageY - viewport.offsetTop;
+      scrollLeftStart = viewport.scrollLeft;
+      scrollTopStart = viewport.scrollTop;
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      viewport.scrollLeft = scrollLeftStart - ((e.pageX - viewport.offsetLeft) - startX);
+      viewport.scrollTop = scrollTopStart - ((e.pageY - viewport.offsetTop) - startY);
+    });
+    window.addEventListener('mouseup', () => { isDragging = false; viewport.classList.remove('is-dragging'); });
+
+    async function loadFlowImage() {
+      const imgEl = document.getElementById('canvas-img');
+      const errBox = document.getElementById('img-error-box');
+      let idx = 0;
+      async function tryNext() {
+        if (idx < flow.imgCandidates.length) {
+          imgEl.src = flow.imgCandidates[idx++].split('/').map(encodeURIComponent).join('/');
+          return;
+        }
+        try {
+          const res = await fetch(GITHUB_REPO_API);
+          if (res.ok) {
+            const files = await res.json();
+            const match = files.find(f => /\.(jpe?g|png|webp)$/i.test(f.name) && flow.keywords.some(k => f.name.toLowerCase().includes(k)));
+            if (match && match.download_url) { imgEl.onerror = null; imgEl.src = match.download_url; return; }
+          }
+        } catch (e) {}
+        imgEl.classList.add('hidden');
+        errBox.classList.remove('hidden');
+        errBox.innerHTML = `Please upload <b>${flow.imgCandidates[0]}</b> to your <b>claude-portfolio</b> GitHub repository.`;
+      }
+      imgEl.onerror = tryNext;
+      imgEl.onload = () => { imgEl.onerror = null; };
+      tryNext();
+    }
+
+    function renderPins() {
+      const pinsContainer = document.getElementById('pins-container');
+      const pillsContainer = document.getElementById('step-pills-container');
+      pinsContainer.innerHTML = '';
+      pillsContainer.innerHTML = `<span class="mono text-[11px] mr-1" style="color: var(--text-muted);">Steps:</span>`;
+
+      flow.pins.forEach((pin, idx) => {
+        const pinBtn = document.createElement('button');
+        pinBtn.className = `hotspot-pin ${idx === currentPinIndex ? 'active' : ''}`;
+        pinBtn.style.left = `${pin.x}%`;
+        pinBtn.style.top = `${pin.y}%`;
+        pinBtn.textContent = pin.id;
+        pinBtn.onclick = (e) => { e.stopPropagation(); selectPin(idx, true); };
+        pinsContainer.appendChild(pinBtn);
+
+        const pillBtn = document.createElement('button');
+        pillBtn.className = `step-pill mono text-[11px] px-2.5 py-1 rounded-md ${idx === currentPinIndex ? 'active' : ''}`;
+        pillBtn.textContent = pin.shortLabel;
+        pillBtn.onclick = () => selectPin(idx, true);
+        pillsContainer.appendChild(pillBtn);
+      });
+    }
+
+    function selectPin(index, userClicked = false) {
+      currentPinIndex = index;
+      const pin = flow.pins[index];
+      document.querySelectorAll('.hotspot-pin').forEach((el, idx) => el.classList.toggle('active', idx === index));
+      document.querySelectorAll('.step-pill').forEach((el, idx) => el.classList.toggle('active', idx === index));
+
+      if (userClicked && document.getElementById('autoZoomToggle')?.checked) {
+        setZoom(zoomLevel < 2 ? 2.25 : zoomLevel, pin.x, pin.y);
+      }
+
+      document.getElementById('inspector-card').innerHTML = `
+        <div class="flex items-center gap-2.5 pb-3" style="border-bottom: 1px solid var(--border-main);">
+          <span class="w-6 h-6 rounded-full flex items-center justify-center mono text-xs font-bold" style="background: #456b8c; color: #fff;">${pin.id}</span>
+          <span class="mono text-[11px] uppercase px-2.5 py-0.5 rounded badge-slate font-medium">${pin.badge}</span>
+        </div>
+        <div class="mt-3.5">
+          <div class="mono text-[11px]" style="color: var(--text-muted);">n8n Nodes in this Group:</div>
+          <div class="mono text-xs md:text-sm font-semibold mt-0.5" style="color: var(--text-primary);">${pin.nodes}</div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4">
+          <div class="md:col-span-8 p-3.5 rounded-xl" style="background: var(--bg-subtle); border: 1px solid var(--border-main);">
+            <span class="mono text-[10px] uppercase font-semibold block mb-1" style="color: var(--sand-pill);">🔍 Hidden Node Logic &amp; Configuration</span>
+            <p class="text-xs leading-relaxed whitespace-pre-line" style="color: var(--text-secondary);">${pin.inside}</p>
+          </div>
+          <div class="md:col-span-4 p-3.5 rounded-xl badge-sage flex flex-col justify-between">
+            <div>
+              <span class="mono text-[10px] uppercase font-semibold block mb-1">✅ Stage Output</span>
+              <p class="text-xs leading-relaxed" style="color: var(--text-primary);">${pin.output}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function stepPin(dir) { selectPin((currentPinIndex + dir + flow.pins.length) % flow.pins.length, true); }
+    function toggleTheme() {
+      document.body.classList.toggle('light-theme');
+      document.getElementById('themeBtn').textContent = document.body.classList.contains('light-theme') ? '🌙 Dark' : '☀️ Paper';
+    }
+
+    window.onload = () => { loadFlowImage(); renderPins(); selectPin(0, false); };
+  </script>
+</body>
+</html>
