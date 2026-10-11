@@ -20,7 +20,6 @@
       --text-secondary: #a1a09c;
       --text-muted: #73726e;
 
-      /* Soft Muted Accents */
       --slate-bg: rgba(148, 180, 211, 0.14);
       --slate-pill: #94b4d3;
       --slate-border: rgba(148, 180, 211, 0.3);
@@ -40,6 +39,8 @@
       --rose-bg: rgba(209, 138, 138, 0.14);
       --rose-pill: #d99b9b;
       --rose-border: rgba(209, 138, 138, 0.32);
+
+      --pin-scale: 1;
     }
 
     body.light-theme {
@@ -111,10 +112,37 @@
       font-weight: 600;
     }
 
-    /* Interactive Hotspot Pins on Screenshot */
+    /* Interactive Pan & Zoom Viewport */
+    #viewport {
+      position: relative;
+      width: 100%;
+      min-height: 260px;
+      overflow: hidden;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-main);
+      background-color: #f4f4f4;
+      background-image: radial-gradient(#dcdcdc 1px, transparent 1px);
+      background-size: 14px 14px;
+      cursor: grab;
+      user-select: none;
+    }
+    #viewport.dragging {
+      cursor: grabbing;
+    }
+    #zoom-layer {
+      position: relative;
+      width: 100%;
+      transform-origin: 0 0;
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    #zoom-layer.no-transition {
+      transition: none !important;
+    }
+
+    /* Counter-scaled Hotspot Pins so they stay crisp when zoomed in */
     .hotspot-pin {
       position: absolute;
-      transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%) scale(var(--pin-scale, 1));
       width: 28px;
       height: 28px;
       border-radius: 9999px;
@@ -130,16 +158,16 @@
       cursor: pointer;
       z-index: 20;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
-      transition: all 0.2s ease;
+      transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
     }
     .hotspot-pin:hover {
-      transform: translate(-50%, -50%) scale(1.15);
+      transform: translate(-50%, -50%) scale(calc(var(--pin-scale, 1) * 1.15));
     }
     .hotspot-pin.active {
       background: #456b8c;
       color: #ffffff;
       border-color: #ffffff;
-      transform: translate(-50%, -50%) scale(1.22);
+      transform: translate(-50%, -50%) scale(calc(var(--pin-scale, 1) * 1.22));
       box-shadow: 0 0 0 5px rgba(148, 180, 211, 0.35), 0 6px 16px rgba(0, 0, 0, 0.5);
     }
 
@@ -181,7 +209,7 @@
             <span class="mono text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-md badge-slate font-medium">
               n8n Workflow System • Mainflow + 2 Subflows
             </span>
-            <span class="text-xs" style="color: var(--text-muted);">Click numbered pins on the canvas to inspect hidden node logic</span>
+            <span class="text-xs" style="color: var(--text-muted);">Scroll or drag to zoom into nodes • Click pins to inspect logic</span>
           </div>
           <h1 class="text-lg md:text-xl font-semibold mt-1.5" style="color: var(--text-primary);">
             Data Enrichment Orchestrator &amp; Automated Lead Replacement
@@ -219,18 +247,43 @@
       </div>
     </div>
 
-    <!-- 2. INTERACTIVE N8N SCREENSHOT CANVAS WITH HOTSPOT PINS -->
+    <!-- 2. INTERACTIVE PAN & ZOOM N8N SCREENSHOT CANVAS -->
     <div class="surface-card rounded-xl p-3 md:p-4 shadow-sm">
-      <div class="relative w-full overflow-hidden rounded-lg border" style="border-color: var(--border-main); background: #f4f4f4;">
-        
-        <!-- Dynamic Workflow Image -->
-        <img id="canvas-img" src="Data%20Enrichment%20Mainflow.jpeg" alt="n8n Workflow Canvas" class="w-full h-auto block select-none">
+      
+      <!-- Zoom & Pan Controls Toolbar -->
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5 pb-2.5" style="border-bottom: 1px solid var(--border-main);">
+        <div class="flex items-center gap-2">
+          <span class="mono text-[11px]" style="color: var(--text-muted);">🔍 Zoom &amp; Pan:</span>
+          <button onclick="changeZoom(-0.4)" class="mono text-xs px-2.5 py-1 rounded tab-btn" title="Zoom Out">&minus;</button>
+          <span id="zoom-label" class="mono text-xs px-2 py-0.5 rounded" style="background: var(--bg-subtle); color: var(--text-primary); min-width: 52px; text-align: center;">100%</span>
+          <button onclick="changeZoom(0.4)" class="mono text-xs px-2.5 py-1 rounded tab-btn" title="Zoom In">&plus;</button>
+          <button onclick="resetZoom()" class="mono text-xs px-2.5 py-1 rounded tab-btn">Reset 100%</button>
+        </div>
 
-        <!-- Sticky Note Clean Mask (Automatically hides yellow sticky notes) -->
-        <div id="sticky-mask" class="sticky-mask" style="left: 24%; top: 36%; width: 8.5%; height: 19%;"></div>
+        <div class="flex items-center gap-3">
+          <label class="flex items-center gap-1.5 cursor-pointer mono text-[11px]" style="color: var(--text-secondary);">
+            <input type="checkbox" id="autoZoomToggle" checked class="accent-slate-500 rounded">
+            Auto-focus on pin click
+          </label>
+          <span class="hidden sm:inline mono text-[11px]" style="color: var(--text-muted);">Scroll wheel to zoom • Drag to pan</span>
+        </div>
+      </div>
 
-        <!-- Hotspot Pins Container (Populated by JS) -->
-        <div id="pins-container"></div>
+      <!-- Zoomable Viewport -->
+      <div id="viewport">
+        <div id="zoom-layer">
+          <!-- Dynamic Workflow Image with Smart Fallback -->
+          <img id="canvas-img" src="Data%20Enrichment%20Mainflow.jpeg" alt="n8n Workflow Canvas" class="w-full h-auto block select-none pointer-events-none">
+
+          <!-- Missing Image Diagnostic Helper (Only appears if image wasn't uploaded to GitHub) -->
+          <div id="img-error-box" class="hidden p-10 text-center mono text-xs" style="color: #333;"></div>
+
+          <!-- Sticky Note Clean Mask -->
+          <div id="sticky-mask" class="sticky-mask" style="left: 24%; top: 36%; width: 8.5%; height: 19%;"></div>
+
+          <!-- Hotspot Pins Container -->
+          <div id="pins-container"></div>
+        </div>
       </div>
 
       <!-- Quick Step Selector Bar Under Image -->
@@ -239,12 +292,12 @@
       </div>
     </div>
 
-    <!-- 3. ACTIVE NODE GROUP INSPECTOR (REVEALS HIDDEN LOGIC & OUTPUT) -->
+    <!-- 3. ACTIVE NODE GROUP INSPECTOR -->
     <div class="surface-card rounded-xl p-5 shadow-sm" id="inspector-card">
       <!-- Populated dynamically by JS -->
     </div>
 
-    <!-- 4. EXECUTIVE VALUE & IMPACT BOX (WHY IT'S IMPORTANT / VALUE / TIME SAVED) -->
+    <!-- 4. EXECUTIVE VALUE & IMPACT BOX -->
     <div class="surface-card rounded-xl p-5 shadow-sm">
       <div class="flex items-center justify-between pb-3 mb-4" style="border-bottom: 1px solid var(--border-main);">
         <span class="mono text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded badge-sage">
@@ -254,7 +307,6 @@
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- Column 1: Why is this important? -->
         <div class="p-4 rounded-xl" style="background: var(--bg-subtle); border: 1px solid var(--border-main);">
           <div class="mono text-[11px] font-semibold uppercase mb-1.5" style="color: var(--slate-pill);">
             1. Why Is This Important?
@@ -265,7 +317,6 @@
           </p>
         </div>
 
-        <!-- Column 2: What value does it bring? -->
         <div class="p-4 rounded-xl" style="background: var(--bg-subtle); border: 1px solid var(--border-main);">
           <div class="mono text-[11px] font-semibold uppercase mb-1.5" style="color: var(--lavender-pill);">
             2. What Value Does It Bring?
@@ -276,7 +327,6 @@
           </p>
         </div>
 
-        <!-- Column 3: How much time does it save? -->
         <div class="p-4 rounded-xl" style="background: var(--bg-subtle); border: 1px solid var(--border-main);">
           <div class="mono text-[11px] font-semibold uppercase mb-1.5" style="color: var(--sage-pill);">
             3. How Much Time Does It Save?
@@ -295,7 +345,12 @@
     const workflows = {
       main: {
         title: "Mainflow: Data Enrichment",
-        img: "Data%20Enrichment%20Mainflow.jpeg",
+        imgCandidates: [
+          "Data Enrichment Mainflow.jpeg",
+          "Data Enrichment Mainflow.jpg",
+          "Data Enrichment Mainflow.png",
+          "data enrichment mainflow.jpeg"
+        ],
         mask: { show: true, left: "24%", top: "36%", width: "8.5%", height: "19%" },
         pins: [
           {
@@ -352,13 +407,20 @@
             badge: "Step 6 • OpenAI Agent + Final Export",
             nodes: "Merge all contacts → Final Sort → Solution Matching (OpenAI) → Merge1 → Final Output Fields → Final CSV",
             inside: "Appends all three contact branches into one table, sorts records in JavaScript ('Final Sort'), passes each prospect through an OpenAI Agent ('Solution Matching') to classify the best-fit product solution based on their title/company, merges the AI output, and converts to CSV.",
-            output: "FinalDefined Output: Downloadable 'Final CSV' containing net-new & replacement contacts, HubSpot status, and AI-matched solution."
+            output: "Final Defined Output: Downloadable 'Final CSV' containing net-new & replacement contacts, HubSpot status, and AI-matched solution."
           }
         ]
       },
       sub1: {
         title: "Subflow 1: People Searching with Apollo",
-        img: "Subflow%20people%20searching%20with%20apollo.jpg",
+        imgCandidates: [
+          "Subflow people searching with apollo.jpg",
+          "Subflow people searching with apollo.jpeg",
+          "Subflow People Searching with Apollo.jpg",
+          "Subflow People Searching with Apollo.jpeg",
+          "Subflow people searching with apollo.png",
+          "subflow people searching with apollo.jpg"
+        ],
         mask: { show: true, left: "15.5%", top: "34%", width: "8%", height: "18%" },
         pins: [
           {
@@ -411,7 +473,13 @@
       },
       sub2: {
         title: "Subflow 2: Replacement Leads",
-        img: "Subflow%20replacement%20leads.jpeg",
+        imgCandidates: [
+          "Subflow replacement leads.jpeg",
+          "Subflow replacement leads.jpg",
+          "Subflow Replacement Leads.jpeg",
+          "Subflow Replacement Leads.jpg",
+          "Subflow replacement leads.png"
+        ],
         mask: { show: false, left: "0%", top: "0%", width: "0%", height: "0%" },
         pins: [
           {
@@ -467,17 +535,150 @@
     let currentFlow = 'main';
     let currentPinIndex = 0;
 
+    // Zoom & Pan State
+    let scale = 1;
+    let panX = 0;
+    let panY = 0;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+
+    const viewport = document.getElementById('viewport');
+    const zoomLayer = document.getElementById('zoom-layer');
+
+    function updateTransform(animate = true) {
+      if (animate) {
+        zoomLayer.classList.remove('no-transition');
+      } else {
+        zoomLayer.classList.add('no-transition');
+      }
+
+      // Clamp panning bounds so canvas stays inside viewport
+      const rect = viewport.getBoundingClientRect();
+      const minX = rect.width * (1 - scale);
+      const minY = rect.height * (1 - scale);
+      panX = Math.min(0, Math.max(minX, panX));
+      panY = Math.min(0, Math.max(minY, panY));
+
+      zoomLayer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+      document.getElementById('zoom-label').textContent = `${Math.round(scale * 100)}%`;
+
+      // Counter-scale pins slightly so they don't cover node text when zoomed in
+      const pinScale = Math.max(0.45, 1 / Math.pow(scale, 0.72));
+      zoomLayer.style.setProperty('--pin-scale', pinScale.toFixed(3));
+    }
+
+    function changeZoom(delta, centerX = null, centerY = null) {
+      const rect = viewport.getBoundingClientRect();
+      const cx = centerX !== null ? centerX : rect.width / 2;
+      const cy = centerY !== null ? centerY : rect.height / 2;
+
+      const prevScale = scale;
+      scale = Math.min(4, Math.max(1, +(scale + delta).toFixed(2)));
+      if (scale === prevScale) return;
+
+      // Zoom toward focal point
+      panX = cx - ((cx - panX) / prevScale) * scale;
+      panY = cy - ((cy - panY) / prevScale) * scale;
+
+      if (scale === 1) {
+        panX = 0;
+        panY = 0;
+      }
+      updateTransform(true);
+    }
+
+    function resetZoom() {
+      scale = 1;
+      panX = 0;
+      panY = 0;
+      updateTransform(true);
+    }
+
+    function focusOnPin(pin) {
+      const rect = viewport.getBoundingClientRect();
+      scale = 2.15;
+      const targetX = (pin.x / 100) * rect.width;
+      const targetY = (pin.y / 100) * rect.height;
+      panX = (rect.width / 2) - (targetX * scale);
+      panY = (rect.height / 2) - (targetY * scale);
+      updateTransform(true);
+    }
+
+    // Mouse Wheel Zoom inside Canvas
+    viewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = viewport.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const delta = e.deltaY < 0 ? 0.3 : -0.3;
+      changeZoom(delta, mouseX, mouseY);
+    }, { passive: false });
+
+    // Click and Drag Panning
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.hotspot-pin')) return;
+      isDragging = true;
+      viewport.classList.add('dragging');
+      startX = e.clientX - panX;
+      startY = e.clientY - panY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      panX = e.clientX - startX;
+      panY = e.clientY - startY;
+      updateTransform(false);
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        viewport.classList.remove('dragging');
+      }
+    });
+
+    // Smart Multi-Candidate Image Loader (Fixes .jpg vs .jpeg 404 issues)
+    function loadFlowImage(candidates) {
+      const imgEl = document.getElementById('canvas-img');
+      const errBox = document.getElementById('img-error-box');
+      let idx = 0;
+
+      imgEl.classList.remove('hidden');
+      errBox.classList.add('hidden');
+
+      function tryNext() {
+        if (idx >= candidates.length) {
+          imgEl.classList.add('hidden');
+          errBox.classList.remove('hidden');
+          errBox.innerHTML = `
+            <div class="font-semibold text-sm mb-1">⚠️ Screenshot File Not Found in GitHub Repo</div>
+            <div>Please check that <b>${candidates[0]}</b> is uploaded to the root of your <b>claude-portfolio</b> repository.</div>
+          `;
+          return;
+        }
+        const candidate = candidates[idx++];
+        imgEl.src = candidate.split('/').map(encodeURIComponent).join('/');
+      }
+
+      imgEl.onerror = tryNext;
+      imgEl.onload = () => {
+        imgEl.onerror = null;
+      };
+      tryNext();
+    }
+
     function switchFlow(flowKey) {
       currentFlow = flowKey;
       currentPinIndex = 0;
+      resetZoom();
 
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       const activeTab = document.getElementById('tab-' + flowKey);
       if (activeTab) activeTab.classList.add('active');
 
       const flow = workflows[flowKey];
-      const imgEl = document.getElementById('canvas-img');
-      imgEl.src = flow.img;
+      loadFlowImage(flow.imgCandidates);
 
       const maskEl = document.getElementById('sticky-mask');
       if (flow.mask.show) {
@@ -491,7 +692,7 @@
       }
 
       renderPins();
-      selectPin(0);
+      selectPin(0, false);
     }
 
     function renderPins() {
@@ -509,18 +710,21 @@
         pinBtn.style.top = `${pin.y}%`;
         pinBtn.textContent = pin.id;
         pinBtn.title = pin.shortLabel;
-        pinBtn.onclick = () => selectPin(idx);
+        pinBtn.onclick = (e) => {
+          e.stopPropagation();
+          selectPin(idx, true);
+        };
         pinsContainer.appendChild(pinBtn);
 
         const pillBtn = document.createElement('button');
         pillBtn.className = `step-pill mono text-[11px] px-2.5 py-1 rounded-md ${idx === currentPinIndex ? 'active' : ''}`;
         pillBtn.textContent = pin.shortLabel;
-        pillBtn.onclick = () => selectPin(idx);
+        pillBtn.onclick = () => selectPin(idx, true);
         pillsContainer.appendChild(pillBtn);
       });
     }
 
-    function selectPin(index) {
+    function selectPin(index, userClicked = false) {
       currentPinIndex = index;
       const flow = workflows[currentFlow];
       const pin = flow.pins[index];
@@ -531,6 +735,11 @@
       document.querySelectorAll('.step-pill').forEach((el, idx) => {
         el.classList.toggle('active', idx === index);
       });
+
+      const autoZoom = document.getElementById('autoZoomToggle')?.checked;
+      if (userClicked && autoZoom) {
+        focusOnPin(pin);
+      }
 
       const jumpButtonHtml = pin.jumpTo
         ? `<button onclick="switchFlow('${pin.jumpTo.flow}')" class="mono text-xs px-3 py-1.5 rounded-lg badge-lavender hover:opacity-80 transition font-medium">
@@ -580,7 +789,7 @@
     function stepPin(direction) {
       const flow = workflows[currentFlow];
       const nextIndex = (currentPinIndex + direction + flow.pins.length) % flow.pins.length;
-      selectPin(nextIndex);
+      selectPin(nextIndex, true);
     }
 
     function toggleTheme() {
