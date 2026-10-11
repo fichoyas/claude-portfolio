@@ -39,8 +39,6 @@
       --rose-bg: rgba(209, 138, 138, 0.14);
       --rose-pill: #d99b9b;
       --rose-border: rgba(209, 138, 138, 0.32);
-
-      --pin-scale: 1;
     }
 
     body.light-theme {
@@ -112,39 +110,48 @@
       font-weight: 600;
     }
 
-    /* Interactive Pan & Zoom Viewport */
+    /* Native Scrollable & Zoomable Viewport (Never blurs, works in all iframes) */
     #viewport {
       position: relative;
       width: 100%;
-      min-height: 260px;
-      overflow: hidden;
+      max-height: 520px;
+      min-height: 240px;
+      overflow: auto;
       border-radius: 0.5rem;
       border: 1px solid var(--border-main);
       background-color: #f4f4f4;
       background-image: radial-gradient(#dcdcdc 1px, transparent 1px);
       background-size: 14px 14px;
-      cursor: grab;
+      cursor: zoom-in;
       user-select: none;
     }
-    #viewport.dragging {
-      cursor: grabbing;
+    #viewport.is-zoomed {
+      cursor: grab;
     }
-    #zoom-layer {
-      position: relative;
-      width: 100%;
-      transform-origin: 0 0;
-      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    #zoom-layer.no-transition {
-      transition: none !important;
+    #viewport.is-dragging {
+      cursor: grabbing !important;
     }
 
-    /* Counter-scaled Hotspot Pins so they stay crisp when zoomed in */
+    #zoom-stage {
+      position: relative;
+      width: 100%;
+      transition: width 0.22s ease;
+    }
+    #zoom-stage.no-anim {
+      transition: none;
+    }
+
+    /* Scrollbar styling inside canvas */
+    #viewport::-webkit-scrollbar { width: 8px; height: 8px; }
+    #viewport::-webkit-scrollbar-track { background: #e5e5e5; }
+    #viewport::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+
+    /* Hotspot Pins */
     .hotspot-pin {
       position: absolute;
-      transform: translate(-50%, -50%) scale(var(--pin-scale, 1));
-      width: 28px;
-      height: 28px;
+      transform: translate(-50%, -50%);
+      width: 30px;
+      height: 30px;
       border-radius: 9999px;
       background: #222222;
       color: #e6e5e3;
@@ -158,20 +165,20 @@
       cursor: pointer;
       z-index: 20;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
-      transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+      transition: all 0.2s ease;
     }
     .hotspot-pin:hover {
-      transform: translate(-50%, -50%) scale(calc(var(--pin-scale, 1) * 1.15));
+      transform: translate(-50%, -50%) scale(1.15);
     }
     .hotspot-pin.active {
       background: #456b8c;
       color: #ffffff;
       border-color: #ffffff;
-      transform: translate(-50%, -50%) scale(calc(var(--pin-scale, 1) * 1.22));
-      box-shadow: 0 0 0 5px rgba(148, 180, 211, 0.35), 0 6px 16px rgba(0, 0, 0, 0.5);
+      transform: translate(-50%, -50%) scale(1.22);
+      box-shadow: 0 0 0 5px rgba(148, 180, 211, 0.38), 0 6px 16px rgba(0, 0, 0, 0.5);
     }
 
-    /* Clean patch to mask yellow sticky notes on n8n screenshots */
+    /* Clean patch to mask yellow sticky notes */
     .sticky-mask {
       position: absolute;
       background-color: #f4f4f4;
@@ -209,7 +216,7 @@
             <span class="mono text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-md badge-slate font-medium">
               n8n Workflow System • Mainflow + 2 Subflows
             </span>
-            <span class="text-xs" style="color: var(--text-muted);">Scroll or drag to zoom into nodes • Click pins to inspect logic</span>
+            <span class="text-xs" style="color: var(--text-muted);">Double-click image or click any pin to zoom into nodes</span>
           </div>
           <h1 class="text-lg md:text-xl font-semibold mt-1.5" style="color: var(--text-primary);">
             Data Enrichment Orchestrator &amp; Automated Lead Replacement
@@ -247,36 +254,34 @@
       </div>
     </div>
 
-    <!-- 2. INTERACTIVE PAN & ZOOM N8N SCREENSHOT CANVAS -->
-    <div class="surface-card rounded-xl p-3 md:p-4 shadow-sm">
+    <!-- 2. INTERACTIVE ZOOMABLE N8N SCREENSHOT CANVAS -->
+    <div class="surface-card rounded-xl p-3 md:p-4 shadow-sm relative">
       
-      <!-- Zoom & Pan Controls Toolbar -->
-      <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5 pb-2.5" style="border-bottom: 1px solid var(--border-main);">
-        <div class="flex items-center gap-2">
-          <span class="mono text-[11px]" style="color: var(--text-muted);">🔍 Zoom &amp; Pan:</span>
-          <button onclick="changeZoom(-0.4)" class="mono text-xs px-2.5 py-1 rounded tab-btn" title="Zoom Out">&minus;</button>
-          <span id="zoom-label" class="mono text-xs px-2 py-0.5 rounded" style="background: var(--bg-subtle); color: var(--text-primary); min-width: 52px; text-align: center;">100%</span>
-          <button onclick="changeZoom(0.4)" class="mono text-xs px-2.5 py-1 rounded tab-btn" title="Zoom In">&plus;</button>
-          <button onclick="resetZoom()" class="mono text-xs px-2.5 py-1 rounded tab-btn">Reset 100%</button>
+      <!-- Top Zoom Control Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2.5" style="border-bottom: 1px solid var(--border-main);">
+        <div class="flex items-center gap-1.5">
+          <span class="mono text-[11px] mr-1" style="color: var(--text-muted);">🔍 Zoom Controls:</span>
+          <button onclick="stepZoom(-0.5)" class="mono text-xs px-2.5 py-1 rounded-md tab-btn font-bold">&minus; Zoom Out</button>
+          <span id="zoom-badge" class="mono text-xs px-2.5 py-1 rounded-md font-semibold" style="background: var(--slate-bg); color: var(--slate-pill); border: 1px solid var(--slate-border);">100%</span>
+          <button onclick="stepZoom(0.5)" class="mono text-xs px-2.5 py-1 rounded-md tab-btn font-bold">&plus; Zoom In</button>
+          <button onclick="setZoom(2.25)" class="mono text-xs px-2.5 py-1 rounded-md tab-btn">225% (Read Nodes)</button>
+          <button onclick="setZoom(1)" class="mono text-xs px-2.5 py-1 rounded-md tab-btn">Reset 100%</button>
         </div>
 
-        <div class="flex items-center gap-3">
-          <label class="flex items-center gap-1.5 cursor-pointer mono text-[11px]" style="color: var(--text-secondary);">
-            <input type="checkbox" id="autoZoomToggle" checked class="accent-slate-500 rounded">
-            Auto-focus on pin click
-          </label>
-          <span class="hidden sm:inline mono text-[11px]" style="color: var(--text-muted);">Scroll wheel to zoom • Drag to pan</span>
-        </div>
+        <label class="flex items-center gap-1.5 cursor-pointer mono text-[11px]" style="color: var(--text-secondary);">
+          <input type="checkbox" id="autoZoomToggle" checked class="rounded">
+          Auto-zoom when clicking a pin
+        </label>
       </div>
 
-      <!-- Zoomable Viewport -->
-      <div id="viewport">
-        <div id="zoom-layer">
-          <!-- Dynamic Workflow Image with Smart Fallback -->
+      <!-- Scrollable / Draggable Viewport -->
+      <div id="viewport" title="Double-click anywhere to zoom in/out, or drag to pan when zoomed">
+        <div id="zoom-stage">
+          <!-- Workflow Screenshot -->
           <img id="canvas-img" src="Data%20Enrichment%20Mainflow.jpeg" alt="n8n Workflow Canvas" class="w-full h-auto block select-none pointer-events-none">
 
-          <!-- Missing Image Diagnostic Helper (Only appears if image wasn't uploaded to GitHub) -->
-          <div id="img-error-box" class="hidden p-10 text-center mono text-xs" style="color: #333;"></div>
+          <!-- Diagnostic Box if Image is Missing from GitHub -->
+          <div id="img-error-box" class="hidden p-8 text-center mono text-xs" style="color: #222; background: #f4f4f4;"></div>
 
           <!-- Sticky Note Clean Mask -->
           <div id="sticky-mask" class="sticky-mask" style="left: 24%; top: 36%; width: 8.5%; height: 19%;"></div>
@@ -342,14 +347,17 @@
   </div>
 
   <script>
+    const GITHUB_REPO_API = "https://api.github.com/repos/fichoyas/claude-portfolio/contents/";
+    let cachedRepoFiles = null;
+
     const workflows = {
       main: {
         title: "Mainflow: Data Enrichment",
+        keywords: ["mainflow", "data enrichment"],
         imgCandidates: [
           "Data Enrichment Mainflow.jpeg",
           "Data Enrichment Mainflow.jpg",
-          "Data Enrichment Mainflow.png",
-          "data enrichment mainflow.jpeg"
+          "Data Enrichment Mainflow.png"
         ],
         mask: { show: true, left: "24%", top: "36%", width: "8.5%", height: "19%" },
         pins: [
@@ -413,13 +421,13 @@
       },
       sub1: {
         title: "Subflow 1: People Searching with Apollo",
+        keywords: ["people", "apollo", "searching"],
         imgCandidates: [
           "Subflow people searching with apollo.jpg",
           "Subflow people searching with apollo.jpeg",
           "Subflow People Searching with Apollo.jpg",
           "Subflow People Searching with Apollo.jpeg",
-          "Subflow people searching with apollo.png",
-          "subflow people searching with apollo.jpg"
+          "Subflow people searching with apollo.png"
         ],
         mask: { show: true, left: "15.5%", top: "34%", width: "8%", height: "18%" },
         pins: [
@@ -473,11 +481,11 @@
       },
       sub2: {
         title: "Subflow 2: Replacement Leads",
+        keywords: ["replacement"],
         imgCandidates: [
           "Subflow replacement leads.jpeg",
           "Subflow replacement leads.jpg",
           "Subflow Replacement Leads.jpeg",
-          "Subflow Replacement Leads.jpg",
           "Subflow replacement leads.png"
         ],
         mask: { show: false, left: "0%", top: "0%", width: "0%", height: "0%" },
@@ -534,112 +542,91 @@
 
     let currentFlow = 'main';
     let currentPinIndex = 0;
-
-    // Zoom & Pan State
-    let scale = 1;
-    let panX = 0;
-    let panY = 0;
-    let isDragging = false;
-    let startX = 0;
-    let startY = 0;
+    let zoomLevel = 1;
 
     const viewport = document.getElementById('viewport');
-    const zoomLayer = document.getElementById('zoom-layer');
+    const zoomStage = document.getElementById('zoom-stage');
 
-    function updateTransform(animate = true) {
-      if (animate) {
-        zoomLayer.classList.remove('no-transition');
+    // True Resolution Width Scaling + Smooth Scroll Centering
+    function setZoom(newZoom, focusXPercent = null, focusYPercent = null) {
+      zoomLevel = Math.min(3.5, Math.max(1, +newZoom.toFixed(2)));
+      zoomStage.style.width = `${zoomLevel * 100}%`;
+      document.getElementById('zoom-badge').textContent = `${Math.round(zoomLevel * 100)}%`;
+
+      if (zoomLevel > 1) {
+        viewport.classList.add('is-zoomed');
       } else {
-        zoomLayer.classList.add('no-transition');
+        viewport.classList.remove('is-zoomed');
       }
 
-      // Clamp panning bounds so canvas stays inside viewport
-      const rect = viewport.getBoundingClientRect();
-      const minX = rect.width * (1 - scale);
-      const minY = rect.height * (1 - scale);
-      panX = Math.min(0, Math.max(minX, panX));
-      panY = Math.min(0, Math.max(minY, panY));
-
-      zoomLayer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-      document.getElementById('zoom-label').textContent = `${Math.round(scale * 100)}%`;
-
-      // Counter-scale pins slightly so they don't cover node text when zoomed in
-      const pinScale = Math.max(0.45, 1 / Math.pow(scale, 0.72));
-      zoomLayer.style.setProperty('--pin-scale', pinScale.toFixed(3));
-    }
-
-    function changeZoom(delta, centerX = null, centerY = null) {
-      const rect = viewport.getBoundingClientRect();
-      const cx = centerX !== null ? centerX : rect.width / 2;
-      const cy = centerY !== null ? centerY : rect.height / 2;
-
-      const prevScale = scale;
-      scale = Math.min(4, Math.max(1, +(scale + delta).toFixed(2)));
-      if (scale === prevScale) return;
-
-      // Zoom toward focal point
-      panX = cx - ((cx - panX) / prevScale) * scale;
-      panY = cy - ((cy - panY) / prevScale) * scale;
-
-      if (scale === 1) {
-        panX = 0;
-        panY = 0;
+      if (focusXPercent !== null && focusYPercent !== null && zoomLevel > 1) {
+        setTimeout(() => {
+          const stageW = zoomStage.scrollWidth;
+          const stageH = zoomStage.scrollHeight;
+          const targetLeft = (focusXPercent / 100) * stageW - (viewport.clientWidth / 2);
+          const targetTop = (focusYPercent / 100) * stageH - (viewport.clientHeight / 2);
+          viewport.scrollTo({
+            left: Math.max(0, targetLeft),
+            top: Math.max(0, targetTop),
+            behavior: 'smooth'
+          });
+        }, 60);
+      } else if (zoomLevel === 1) {
+        viewport.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
       }
-      updateTransform(true);
     }
 
-    function resetZoom() {
-      scale = 1;
-      panX = 0;
-      panY = 0;
-      updateTransform(true);
+    function stepZoom(delta) {
+      const pin = workflows[currentFlow].pins[currentPinIndex];
+      setZoom(zoomLevel + delta, pin ? pin.x : 50, pin ? pin.y : 50);
     }
 
-    function focusOnPin(pin) {
-      const rect = viewport.getBoundingClientRect();
-      scale = 2.15;
-      const targetX = (pin.x / 100) * rect.width;
-      const targetY = (pin.y / 100) * rect.height;
-      panX = (rect.width / 2) - (targetX * scale);
-      panY = (rect.height / 2) - (targetY * scale);
-      updateTransform(true);
-    }
-
-    // Mouse Wheel Zoom inside Canvas
-    viewport.addEventListener('wheel', (e) => {
+    // Double-Click Anywhere on Image to Zoom In / Out
+    viewport.addEventListener('dblclick', (e) => {
       e.preventDefault();
-      const rect = viewport.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      const delta = e.deltaY < 0 ? 0.3 : -0.3;
-      changeZoom(delta, mouseX, mouseY);
-    }, { passive: false });
+      const rect = zoomStage.getBoundingClientRect();
+      const clickXPercent = ((e.clientX - rect.left) / rect.width) * 100;
+      const clickYPercent = ((e.clientY - rect.top) / rect.height) * 100;
 
-    // Click and Drag Panning
+      if (zoomLevel < 2) {
+        setZoom(2.25, clickXPercent, clickYPercent);
+      } else if (zoomLevel < 3.2) {
+        setZoom(3.5, clickXPercent, clickYPercent);
+      } else {
+        setZoom(1);
+      }
+    });
+
+    // Click and Drag to Pan When Zoomed
+    let isDragging = false;
+    let startX = 0, startY = 0, scrollLeftStart = 0, scrollTopStart = 0;
+
     viewport.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.hotspot-pin')) return;
+      if (zoomLevel <= 1 || e.target.closest('.hotspot-pin')) return;
       isDragging = true;
-      viewport.classList.add('dragging');
-      startX = e.clientX - panX;
-      startY = e.clientY - panY;
+      viewport.classList.add('is-dragging');
+      startX = e.pageX - viewport.offsetLeft;
+      startY = e.pageY - viewport.offsetTop;
+      scrollLeftStart = viewport.scrollLeft;
+      scrollTopStart = viewport.scrollTop;
     });
 
     window.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
-      panX = e.clientX - startX;
-      panY = e.clientY - startY;
-      updateTransform(false);
+      e.preventDefault();
+      const x = e.pageX - viewport.offsetLeft;
+      const y = e.pageY - viewport.offsetTop;
+      viewport.scrollLeft = scrollLeftStart - (x - startX);
+      viewport.scrollTop = scrollTopStart - (y - startY);
     });
 
     window.addEventListener('mouseup', () => {
-      if (isDragging) {
-        isDragging = false;
-        viewport.classList.remove('dragging');
-      }
+      isDragging = false;
+      viewport.classList.remove('is-dragging');
     });
 
-    // Smart Multi-Candidate Image Loader (Fixes .jpg vs .jpeg 404 issues)
-    function loadFlowImage(candidates) {
+    // Smart Image Loader + Automatic GitHub Repo API Fallback
+    async function loadFlowImage(flow) {
       const imgEl = document.getElementById('canvas-img');
       const errBox = document.getElementById('img-error-box');
       let idx = 0;
@@ -647,38 +634,69 @@
       imgEl.classList.remove('hidden');
       errBox.classList.add('hidden');
 
-      function tryNext() {
-        if (idx >= candidates.length) {
-          imgEl.classList.add('hidden');
-          errBox.classList.remove('hidden');
-          errBox.innerHTML = `
-            <div class="font-semibold text-sm mb-1">⚠️ Screenshot File Not Found in GitHub Repo</div>
-            <div>Please check that <b>${candidates[0]}</b> is uploaded to the root of your <b>claude-portfolio</b> repository.</div>
-          `;
+      async function tryNextCandidate() {
+        if (idx < flow.imgCandidates.length) {
+          const candidate = flow.imgCandidates[idx++];
+          imgEl.src = candidate.split('/').map(encodeURIComponent).join('/');
           return;
         }
-        const candidate = candidates[idx++];
-        imgEl.src = candidate.split('/').map(encodeURIComponent).join('/');
+
+        // Fallback: Query GitHub Contents API to find exact filename in fichoyas/claude-portfolio
+        try {
+          if (!cachedRepoFiles) {
+            const res = await fetch(GITHUB_REPO_API);
+            if (res.ok) cachedRepoFiles = await res.json();
+          }
+          if (Array.isArray(cachedRepoFiles)) {
+            const imageFiles = cachedRepoFiles.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name));
+            const match = imageFiles.find(f => {
+              const lower = f.name.toLowerCase();
+              return flow.keywords.some(k => lower.includes(k));
+            });
+            if (match && match.download_url) {
+              imgEl.onerror = null;
+              imgEl.src = match.download_url;
+              return;
+            }
+            // Show diagnostic list of uploaded images if not found
+            imgEl.classList.add('hidden');
+            errBox.classList.remove('hidden');
+            const uploadedNames = imageFiles.map(f => f.name).join(', ') || 'None found';
+            errBox.innerHTML = `
+              <div class="font-bold text-sm mb-2 text-red-700">⚠️ Screenshot Missing from GitHub Repository</div>
+              <div class="mb-2">Could not find <b>${flow.imgCandidates[0]}</b> in <code>fichoyas/claude-portfolio</code>.</div>
+              <div class="text-xs text-slate-600">Images currently in your GitHub repo: <b>${uploadedNames}</b></div>
+              <div class="text-xs text-slate-600 mt-1">Fix: Click the <b>+</b> button in your GitHub repo &rarr; <b>Upload files</b> &rarr; upload <b>${flow.imgCandidates[0]}</b> and Commit.</div>
+            `;
+            return;
+          }
+        } catch (err) {
+          // Ignore API errors
+        }
+
+        imgEl.classList.add('hidden');
+        errBox.classList.remove('hidden');
+        errBox.innerHTML = `<div>Please upload <b>${flow.imgCandidates[0]}</b> to your <b>claude-portfolio</b> GitHub repository.</div>`;
       }
 
-      imgEl.onerror = tryNext;
+      imgEl.onerror = tryNextCandidate;
       imgEl.onload = () => {
         imgEl.onerror = null;
       };
-      tryNext();
+      tryNextCandidate();
     }
 
     function switchFlow(flowKey) {
       currentFlow = flowKey;
       currentPinIndex = 0;
-      resetZoom();
+      setZoom(1);
 
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       const activeTab = document.getElementById('tab-' + flowKey);
       if (activeTab) activeTab.classList.add('active');
 
       const flow = workflows[flowKey];
-      loadFlowImage(flow.imgCandidates);
+      loadFlowImage(flow);
 
       const maskEl = document.getElementById('sticky-mask');
       if (flow.mask.show) {
@@ -709,7 +727,7 @@
         pinBtn.style.left = `${pin.x}%`;
         pinBtn.style.top = `${pin.y}%`;
         pinBtn.textContent = pin.id;
-        pinBtn.title = pin.shortLabel;
+        pinBtn.title = `${pin.shortLabel} (Click to inspect & zoom)`;
         pinBtn.onclick = (e) => {
           e.stopPropagation();
           selectPin(idx, true);
@@ -738,7 +756,8 @@
 
       const autoZoom = document.getElementById('autoZoomToggle')?.checked;
       if (userClicked && autoZoom) {
-        focusOnPin(pin);
+        const targetZoom = zoomLevel < 2 ? 2.25 : zoomLevel;
+        setZoom(targetZoom, pin.x, pin.y);
       }
 
       const jumpButtonHtml = pin.jumpTo
