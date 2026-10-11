@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>n8n System: Data Enrichment Orchestrator & Subflows</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    :root {
+      --bg-canvas: #191919;
+      --bg-dot: #262626;
+      --bg-card: #222222;
+      --bg-card-hover: #272727;
+      --bg-subtle: #1d1d1d;
+      --border-main: #333333;
+      --border-hover: #4a4a4a;
+      --line-color: #3d3d3d;
+      --text-primary: #e6e5e3;
+      --text-secondary: #a1a09c;
+      --text-muted: #73726e;
+
+      --slate-bg: rgba(148, 180, 211, 0.12);
+      --slate-pill: #94b4d3;
+      --slate-border: rgba(148, 180, 211, 0.25);
+
+      --sand-bg: rgba(217, 181, 113, 0.12);
+      --sand-pill: #d9b571;
+      --sand-border: rgba(217, 181, 113, 0.25);
+
+      --lavender-bg: rgba(177, 162, 202, 0.12);
+      --lavender-pill: #b9a9d4;
+      --lavender-border: rgba(177, 162, 202, 0.28);
+
+      --sage-bg: rgba(126, 178, 149, 0.12);
+      --sage-pill: #8ac2a3;
+      --sage-border: rgba(126, 178, 149, 0.3);
+
+      --rose-bg: rgba(209, 138, 138, 0.11);
+      --rose-pill: #d99b9b;
+      --rose-border: rgba(209, 138, 138, 0.28);
+    }
+
+    body.light-theme {
+      --bg-canvas: #f7f6f3;
+      --bg-dot: #e2e0d8;
+      --bg-card: #ffffff;
+      --bg-card-hover: #fcfbfa;
+      --bg-subtle: #f1f0ec;
+      --border-main: #e0ded7;
+      --border-hover: #c7c4bc;
+      --line-color: #ccc9c0;
+      --text-primary: #2c2c2b;
+      --text-secondary: #5c5b57;
+      --text-muted: #87857f;
+
+      --slate-bg: #eef3f8;
+      --slate-pill: #456b8c;
+      --slate-border: #cddce9;
+
+      --sand-bg: #faf3e6;
+      --sand-pill: #8f6824;
+      --sand-border: #e8d5b5;
+
+      --lavender-bg: #f3f0f9;
+      --lavender-pill: #5e4b80;
+      --lavender-border: #d9d0ea;
+
+      --sage-bg: #eaf4ee;
+      --sage-pill: #2f6f4e;
+      --sage-border: #c1decb;
+
+      --rose-bg: #faeeee;
+      --rose-pill: #944040;
+      --rose-border: #e8c5c5;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-canvas);
+      background-image: radial-gradient(var(--bg-dot) 1px, transparent 1px);
+      background-size: 20px 20px;
+      color: var(--text-primary);
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .surface-card { background: var(--bg-card); border: 1px solid var(--border-main); }
+    .node-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-main);
+      transition: all 0.2s ease;
+    }
+    .node-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.2);
+    }
+    .details-drawer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease-out, margin-top 0.2s ease;
+    }
+    .node-card.open .details-drawer {
+      max-height: 260px;
+      margin-top: 0.75rem;
+    }
+    .node-card.open .chevron { transform: rotate(180deg); }
+    .tree-stem { background-color: var(--line-color); }
+    .tree-branch { border-color: var(--line-color); }
+
+    .badge-slate { background: var(--slate-bg); color: var(--slate-pill); border: 1px solid var(--slate-border); }
+    .badge-sand { background: var(--sand-bg); color: var(--sand-pill); border: 1px solid var(--sand-border); }
+    .badge-lavender { background: var(--lavender-bg); color: var(--lavender-pill); border: 1px solid var(--lavender-border); }
+    .badge-sage { background: var(--sage-bg); color: var(--sage-pill); border: 1px solid var(--sage-border); }
+    .badge-rose { background: var(--rose-bg); color: var(--rose-pill); border: 1px solid var(--rose-border); }
+
+    .tab-btn {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-main);
+      color: var(--text-secondary);
+      transition: all 0.15s ease;
+    }
+    .tab-btn:hover { color: var(--text-primary); border-color: var(--border-hover); }
+    .tab-btn.active {
+      background: var(--lavender-bg);
+      color: var(--lavender-pill);
+      border-color: var(--lavender-border);
+      font-weight: 600;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: flex; }
+  </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+
+  <!-- 1. TOP OVERVIEW & SUBFLOW NAVIGATION HEADER -->
+  <div class="w-full max-w-4xl surface-card rounded-xl p-5 mb-6 shadow-sm">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5" style="border-bottom: 1px solid var(--border-main);">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <span class="mono text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-md badge-rose font-medium">
+            n8n Modular Pipeline • 1 Mainflow + 2 Subflows
+          </span>
+          <span class="text-xs" style="color: var(--text-muted);">Click nodes to inspect or jump into Subflows</span>
+        </div>
+        <h1 class="text-lg md:text-xl font-semibold mt-1.5" style="color: var(--text-primary);">
+          Data Enrichment Orchestrator &amp; Automated Lead Replacement
+        </h1>
+      </div>
+
+      <div class="flex items-center gap-2 self-start sm:self-center shrink-0">
+        <button onclick="toggleTheme()" id="themeBtn" class="mono text-xs px-2.5 py-1.5 rounded-lg transition" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+          ☀️ Paper
+        </button>
+        <button onclick="toggleAll()" id="toggleBtn" class="mono text-xs px-3 py-1.5 rounded-lg transition" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-primary);">
+          Expand All Specs
+        </button>
+      </div>
+    </div>
+
+    <p class="text-xs md:text-sm mt-3.5 leading-relaxed" style="color: var(--text-secondary);">
+      <strong style="color: var(--text-primary);">Overview:</strong> A modular 3-workflow n8n architecture that pulls target companies from HubSpot, searches Apollo for sustainability decision-makers using an automated keyword-retry loop (<strong>Subflow 1</strong>), enriches contact data, checks HubSpot for existing records, automatically sources net-new replacement leads whenever a prospect is already in HubSpot (<strong>Subflow 2</strong>), runs OpenAI solution matching and MailNinja email validation, and exports a clean CSV.
+    </p>
+
+    <!-- Interactive Architecture Switcher Tabs -->
+    <div class="flex flex-wrap items-center gap-2 mt-4 pt-3.5" style="border-top: 1px solid var(--border-main);">
+      <span class="mono text-[11px] mr-1" style="color: var(--text-muted);">View Layer:</span>
+      <button onclick="switchTab('mainflow')" id="btn-mainflow" class="tab-btn active mono text-xs px-3 py-1.5 rounded-lg">
+        ⚡ 1. Mainflow: Data Enrichment
+      </button>
+      <button onclick="switchTab('subflow1')" id="btn-subflow1" class="tab-btn mono text-xs px-3 py-1.5 rounded-lg">
+        ↳ 2. Subflow: People Search (Apollo)
+      </button>
+      <button onclick="switchTab('subflow2')" id="btn-subflow2" class="tab-btn mono text-xs px-3 py-1.5 rounded-lg">
+        ↳ 3. Subflow: Replacement Leads
+      </button>
+      <button onclick="switchTab('screenshots')" id="btn-screenshots" class="tab-btn mono text-xs px-3 py-1.5 rounded-lg">
+        🖼️ Original n8n Canvas
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- TAB 1: MAINFLOW (DATA ENRICHMENT)                         -->
+  <!-- ========================================================= -->
+  <div id="tab-mainflow" class="tab-panel active w-full max-w-4xl flex-col items-center">
+
+    <!-- STEP 1 & 2: Trigger + Subflow 1 Call -->
+    <div class="node-card rounded-xl p-4 w-full max-w-lg" style="border-color: var(--lavender-border);">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">
+          Step 1 • Trigger &amp; Execute Sub-Workflow 1
+        </span>
+        <button onclick="switchTab('subflow1')" class="mono text-[10px] px-2.5 py-1 rounded badge-lavender hover:opacity-80 transition">
+          ↳ Open Subflow 1 &rarr;
+        </button>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Call <code>SubFlow People Searching with Apollo</code></h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Triggered via <code>When clicking 'Execute workflow'</code>. Invokes Subflow 1 to fetch HubSpot companies and run iterative Apollo keyword searches until target sustainability contacts are found.</p>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- STEP 2: Apollo Singular Enrichment -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-lg">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-slate">
+          Step 2 • HTTP Request (Apollo API) + Edit Fields
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);"><code>People Enrichment (singular)</code> &rarr; <code>Final Fields</code></h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Enriches each discovered prospect via Apollo POST API and maps normalized contact &amp; company attributes in <code>Final Fields</code>.</p>
+      <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        <div><span style="color: var(--text-muted);">Endpoint:</span> POST https://api.apollo.io/api/v1/people/match</div>
+        <div><span style="color: var(--text-muted);">Mapping:</span> Extracts email, title, seniority, company domain, LinkedIn</div>
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- STEP 3: HubSpot Existence Loop -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-lg">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sand">
+          Step 3 • Batched Loop Over Items + Rate-Limit Wait
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);"><code>Loop Over Items1</code> &rarr; <code>Search contacts in HS</code></h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Iterates through enriched prospects, searches HubSpot CRM (<code>search: contact</code>), combines CRM metadata via <code>Merge HS data</code>, and paces requests with a <code>Wait1</code> node.</p>
+      <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        <div><span style="color: var(--text-muted);">Loop Cycle:</span> Loop Over Items1 &rarr; Search HS &rarr; Merge (combine) &rarr; Wait1</div>
+      </div>
+    </div>
+
+    <div class="w-px h-5 tree-stem"></div>
+    <div class="mono text-[10px] px-2.5 py-0.5 rounded-full badge-sand">
+      Step 4 • Router: <code>If already in HS</code>
+    </div>
+    <div class="w-px h-4 tree-stem"></div>
+
+    <!-- 3-Way Branch from "If already in HS" -->
+    <div class="w-2/3 h-3 border-t border-l border-r tree-branch rounded-t"></div>
+    <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-3">
+      
+      <!-- Branch A: True -> Call Subflow Replacement Leads -->
+      <div class="node-card rounded-xl p-3.5 flex flex-col justify-between" style="border-color: var(--lavender-border);">
+        <div>
+          <div class="flex items-center justify-between">
+            <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">If True (Path A)</span>
+          </div>
+          <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">Call <code>SubFlow Replacement Leads</code></h4>
+          <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Passes existing company context via <code>Keep needed information1</code> to Subflow 2 to source a fresh replacement contact.</p>
+        </div>
+        <button onclick="switchTab('subflow2')" class="mt-3 w-full mono text-[10px] py-1.5 rounded badge-lavender hover:opacity-80 transition text-center">
+          ↳ Open Subflow 2 &rarr;
+        </button>
+      </div>
+
+      <!-- Branch B: True -> Format Original HS Leads -->
+      <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5">
+        <div class="flex items-center justify-between">
+          <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sand">If True (Path B)</span>
+          <svg class="chevron w-3.5 h-3.5 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);"><code>Format Original HS leads</code></h4>
+        <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Preserves and standardizes the existing HubSpot contact record alongside its CRM history.</p>
+        <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+          Feeds Input 2 of Merge all contacts
+        </div>
+      </div>
+
+      <!-- Branch C: False -> Net-New Contact -->
+      <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5">
+        <div class="flex items-center justify-between">
+          <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sage">If False (Net-New)</span>
+          <svg class="chevron w-3.5 h-3.5 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);"><code>Keep needed information</code></h4>
+        <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Prospect is not in HubSpot. Retains clean Apollo-enriched fields directly for downstream matching.</p>
+        <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+          Feeds Input 3 of Merge all contacts
+        </div>
+      </div>
+    </div>
+
+    <div class="w-2/3 h-3 border-b border-l border-r tree-branch rounded-b"></div>
+    <div class="w-px h-5 tree-stem"></div>
+
+    <!-- STEP 5: Merge, Sort & OpenAI Solution Matching -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-lg">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">
+          Step 5 • Consolidation &amp; OpenAI Solution Matching
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);"><code>Merge all contacts</code> &rarr; <code>Final Sort</code> &rarr; <code>Solution Matching</code></h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Appends all 3 streams (Replacements + Existing HS + Net-New), sorts via JS code, runs an OpenAI Agent node (<code>Solution Matching</code>) to map each prospect to the right product line, and combines via <code>Merge1</code>.</p>
+      <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        <div><span style="color: var(--text-muted);">AI Node:</span> OpenAI Response Text model with tool support</div>
+        <div><span style="color: var(--text-muted);">Auxiliary Loop:</span> MailNinja GET validation loop + Parse MailNinja</div>
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- FINAL OUTPUT -->
+    <div class="w-full max-w-lg rounded-xl p-5 badge-sage shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="mono text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded" style="background: rgba(0,0,0,0.12);">
+          ✅ Final Defined Output (Mainflow)
+        </span>
+        <span class="mono text-[11px] font-medium">Final Output Fields &rarr; Final CSV</span>
+      </div>
+      <ul class="text-xs space-y-1.5 mt-3 list-disc list-inside leading-relaxed" style="color: var(--text-primary);">
+        <li><strong>Enriched &amp; Replaced Lead CSV:</strong> Combines net-new prospects, formatted HubSpot records, and automatically sourced replacement leads.</li>
+        <li><strong>AI Solution Fit + MailNinja Verification:</strong> Appends tailored solution classification and deliverable email status.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- TAB 2: SUBFLOW 1 (PEOPLE SEARCHING WITH APOLLO)           -->
+  <!-- ========================================================= -->
+  <div id="tab-subflow1" class="tab-panel w-full max-w-4xl flex-col items-center">
+    <div class="w-full flex items-center justify-between mb-4 px-2">
+      <span class="mono text-xs badge-lavender px-3 py-1 rounded-md">Subflow 1 • Called at Step 1 of Mainflow</span>
+      <button onclick="switchTab('mainflow')" class="mono text-xs px-3 py-1 rounded-lg tab-btn">&larr; Back to Mainflow</button>
+    </div>
+
+    <!-- Subflow 1 Step 1 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-lg">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-slate">
+          Subflow 1 • Step 1: HubSpot Company Ingestion
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);"><code>When Executed by Another Workflow</code> &rarr; <code>Get companies from HS</code></h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Fetches target company records with clean domains from HubSpot CRM (`POST /crm/v3/objects/companies/search`) and splits them into individual items via <code>Split Out</code>.</p>
+      <div class="details-drawer pt-2.5 text-[11px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        Prerequisite: Companies in HubSpot must have a clean domain for matching
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- Subflow 1 Step 2 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-lg">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">
+          Subflow 1 • Step 2: Primary Apollo Sustainability Search
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);"><code>HS/Apollo Name Matching</code> &rarr; <code>Apollo People search keyword sustainability</code></h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Matches the HubSpot organization to Apollo and queries people matching the primary <code>sustainability</code> keyword, combining results with company metadata in <code>Merge1</code>.</p>
+      <div class="details-drawer pt-2.5 text-[11px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        Combines original HubSpot company payload (Input 1) with Apollo candidates (Input 2)
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- Subflow 1 Step 3: Dynamic Keyword Retry Loop -->
+    <div class="w-full rounded-2xl p-5 flex flex-col items-center" style="background: var(--bg-subtle); border: 1px dashed var(--sand-border);">
+      <div class="flex flex-wrap items-center justify-between gap-2 w-full mb-4">
+        <span class="mono text-xs font-medium uppercase tracking-wider px-3 py-1 rounded-md badge-sand">
+          🔄 Subflow 1 • Step 3: Iterative Keyword Retry Engine (Loop Over Items)
+        </span>
+        <span class="mono text-[11px]" style="color: var(--text-muted);">Fallback search when primary keyword returns 0</span>
+      </div>
+
+      <div class="w-full grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5">
+          <div class="flex items-center justify-between">
+            <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sand">Stop Trying? = True (Retry Path)</span>
+            <svg class="chevron w-3.5 h-3.5 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+          <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);"><code>Apollo People Search Retry Keywords</code></h4>
+          <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Steps through fallback department/role keywords via <code>Current Retry</code> &rarr; Apollo Search &rarr; <code>Merge Retry Json</code> &rarr; <code>Update</code> until candidates are found or retry list is exhausted.</p>
+          <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+            Prevents zero-lead drops on companies that use non-standard job titles
+          </div>
+        </div>
+
+        <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5">
+          <div class="flex items-center justify-between">
+            <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sage">Stop Trying? = False (Complete)</span>
+            <svg class="chevron w-3.5 h-3.5 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+          <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);"><code>Return Company</code> &rarr; Next Item</h4>
+          <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Commits discovered contacts for the current company and advances <code>Loop Over Items</code> to the next account.</p>
+          <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+            Exits via Split Out2 &rarr; Prepare for MainFlow
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <div class="w-full max-w-lg rounded-xl p-4 badge-sage text-center">
+      <span class="mono text-xs font-semibold uppercase">✅ Subflow 1 Output: <code>Prepare for MainFlow</code></span>
+      <p class="text-xs mt-1" style="color: var(--text-primary);">Returns flattened list of discovered Apollo prospect IDs and matched HubSpot company metadata back to Mainflow Step 2.</p>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- TAB 3: SUBFLOW 2 (REPLACEMENT LEADS)                      -->
+  <!-- ========================================================= -->
+  <div id="tab-subflow2" class="tab-panel w-full max-w-4xl flex-col items-center">
+    <div class="w-full flex items-center justify-between mb-4 px-2">
+      <span class="mono text-xs badge-lavender px-3 py-1 rounded-md">Subflow 2 • Called when Contact is Already in HubSpot</span>
+      <button onclick="switchTab('mainflow')" class="mono text-xs px-3 py-1 rounded-lg tab-btn">&larr; Back to Mainflow</button>
+    </div>
+
+    <!-- Subflow 2 Step 1 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-lg">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-slate">
+          Subflow 2 • Step 1: Replacement Candidate Search
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);"><code>Apollo People search keyword sustainability</code> &rarr; <code>Split Out</code></h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Receives companies whose initial contact was already in HubSpot and queries Apollo for alternative decision-makers at the same organization.</p>
+      <div class="details-drawer pt-2.5 text-[11px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        Unpacks candidate array via Split Out &rarr; Edit Fields
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- Subflow 2 Step 2 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-lg">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sand">
+          Subflow 2 • Step 2: Dual-Stage Deduplication Gate
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);"><code>Remove Duplicates</code> &rarr; <code>Check if Apollo ID is duplicate</code></h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Deduplicates candidate records within the batch and cross-checks each Apollo ID against an n8n Data Table so previously processed leads aren't re-enriched.</p>
+      <div class="details-drawer pt-2.5 text-[11px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        Saves Apollo enrichment credits by filtering known IDs before POST match
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- Subflow 2 Step 3 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-lg">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">
+          Subflow 2 • Step 3: Enrich &amp; Verify Replacement in HubSpot
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);"><code>People Enrichment (singular)1</code> &rarr; <code>Loop Over Items1</code> (HS Check)</h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Enriches the replacement lead in Apollo, maps <code>Final Fields</code>, and runs a HubSpot contact search loop (with <code>Wait1</code> rate-limit pacing) to confirm the replacement status.</p>
+      <div class="details-drawer pt-2.5 text-[11px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        Loop: Search contacts in HS &rarr; Merge HS data &rarr; Wait1
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <div class="w-full max-w-lg rounded-xl p-4 badge-sage text-center">
+      <span class="mono text-xs font-semibold uppercase">✅ Subflow 2 Output: <code>Prepare for MainFlow</code></span>
+      <p class="text-xs mt-1" style="color: var(--text-primary);">Returns verified replacement contact payload back to Input 1 of <code>Merge all contacts</code> in the Mainflow.</p>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- TAB 4: ORIGINAL N8N CANVAS SCREENSHOTS                    -->
+  <!-- ========================================================= -->
+  <div id="tab-screenshots" class="tab-panel w-full max-w-4xl flex-col gap-6">
+    <div class="surface-card rounded-xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <span class="mono text-xs font-semibold badge-slate px-2.5 py-0.5 rounded">1. Data Enrichment Mainflow (n8n Canvas)</span>
+        <span class="mono text-[11px]" style="color: var(--text-muted);">Upload "Data Enrichment Mainflow.jpeg" to repo to display</span>
+      </div>
+      <img src="Data%20Enrichment%20Mainflow.jpeg" alt="Data Enrichment Mainflow n8n Screenshot" class="w-full rounded-lg border" style="border-color: var(--border-main);" onerror="this.outerHTML='<div class=\'p-6 text-center mono text-xs rounded-lg\' style=\'background:var(--bg-subtle); color:var(--text-muted); border:1px dashed var(--border-main);\'>Optional: Upload <b>Data Enrichment Mainflow.jpeg</b> to your claude-portfolio GitHub repo to render the raw screenshot here.</div>'">
+    </div>
+
+    <div class="surface-card rounded-xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <span class="mono text-xs font-semibold badge-lavender px-2.5 py-0.5 rounded">2. Subflow: People Searching with Apollo (n8n Canvas)</span>
+      </div>
+      <img src="Subflow%20people%20searching%20with%20apollo.jpg" alt="Subflow People Searching with Apollo Screenshot" class="w-full rounded-lg border" style="border-color: var(--border-main);" onerror="this.outerHTML='<div class=\'p-6 text-center mono text-xs rounded-lg\' style=\'background:var(--bg-subtle); color:var(--text-muted); border:1px dashed var(--border-main);\'>Optional: Upload <b>Subflow people searching with apollo.jpg</b> to your claude-portfolio GitHub repo to render the raw screenshot here.</div>'">
+    </div>
+
+    <div class="surface-card rounded-xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <span class="mono text-xs font-semibold badge-sand px-2.5 py-0.5 rounded">3. Subflow: Replacement Leads (n8n Canvas)</span>
+      </div>
+      <img src="Subflow%20replacement%20leads.jpeg" alt="Subflow Replacement Leads Screenshot" class="w-full rounded-lg border" style="border-color: var(--border-main);" onerror="this.outerHTML='<div class=\'p-6 text-center mono text-xs rounded-lg\' style=\'background:var(--bg-subtle); color:var(--text-muted); border:1px dashed var(--border-main);\'>Optional: Upload <b>Subflow replacement leads.jpeg</b> to your claude-portfolio GitHub repo to render the raw screenshot here.</div>'">
+    </div>
+  </div>
+
+  <script>
+    let allOpen = false;
+    function toggleAll() {
+      allOpen = !allOpen;
+      document.querySelectorAll('.node-card').forEach(card => {
+        if (allOpen) card.classList.add('open');
+        else card.classList.remove('open');
+      });
+      document.getElementById('toggleBtn').textContent = allOpen ? 'Collapse All Specs' : 'Expand All Specs';
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('light-theme');
+      const isLight = document.body.classList.contains('light-theme');
+      document.getElementById('themeBtn').textContent = isLight ? '🌙 Dark' : '☀️ Paper';
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + tabId).classList.add('active');
+      document.getElementById('btn-' + tabId).classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
