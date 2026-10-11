@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moodle Notification & Homework Solver — Tree Diagram</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    :root {
+      --bg-canvas: #191919;
+      --bg-dot: #262626;
+      --bg-card: #222222;
+      --bg-card-hover: #272727;
+      --bg-subtle: #1d1d1d;
+      --border-main: #333333;
+      --border-hover: #4a4a4a;
+      --line-color: #3d3d3d;
+      --text-primary: #e6e5e3;
+      --text-secondary: #a1a09c;
+      --text-muted: #73726e;
+
+      /* Soft Muted Accents (Low Eye Strain) */
+      --slate-bg: rgba(148, 180, 211, 0.12);
+      --slate-text: #a3c1ad;
+      --slate-pill: #94b4d3;
+      --slate-border: rgba(148, 180, 211, 0.25);
+
+      --sand-bg: rgba(217, 181, 113, 0.12);
+      --sand-pill: #d9b571;
+      --sand-border: rgba(217, 181, 113, 0.25);
+
+      --lavender-bg: rgba(177, 162, 202, 0.12);
+      --lavender-pill: #b9a9d4;
+      --lavender-border: rgba(177, 162, 202, 0.28);
+
+      --sage-bg: rgba(126, 178, 149, 0.12);
+      --sage-pill: #8ac2a3;
+      --sage-border: rgba(126, 178, 149, 0.3);
+
+      --rose-bg: rgba(209, 138, 138, 0.11);
+      --rose-pill: #d99b9b;
+      --rose-border: rgba(209, 138, 138, 0.28);
+    }
+
+    body.light-theme {
+      --bg-canvas: #f7f6f3;
+      --bg-dot: #e2e0d8;
+      --bg-card: #ffffff;
+      --bg-card-hover: #fcfbfa;
+      --bg-subtle: #f1f0ec;
+      --border-main: #e0ded7;
+      --border-hover: #c7c4bc;
+      --line-color: #ccc9c0;
+      --text-primary: #2c2c2b;
+      --text-secondary: #5c5b57;
+      --text-muted: #87857f;
+
+      --slate-bg: #eef3f8;
+      --slate-pill: #456b8c;
+      --slate-border: #cddce9;
+
+      --sand-bg: #faf3e6;
+      --sand-pill: #8f6824;
+      --sand-border: #e8d5b5;
+
+      --lavender-bg: #f3f0f9;
+      --lavender-pill: #5e4b80;
+      --lavender-border: #d9d0ea;
+
+      --sage-bg: #eaf4ee;
+      --sage-pill: #2f6f4e;
+      --sage-border: #c1decb;
+
+      --rose-bg: #faeeee;
+      --rose-pill: #944040;
+      --rose-border: #e8c5c5;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-canvas);
+      background-image: radial-gradient(var(--bg-dot) 1px, transparent 1px);
+      background-size: 20px 20px;
+      color: var(--text-primary);
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    
+    .surface-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-main);
+      transition: all 0.2s ease;
+    }
+    .node-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-main);
+      transition: all 0.2s ease;
+    }
+    .node-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.2);
+    }
+    .details-drawer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease-out, margin-top 0.2s ease;
+    }
+    .node-card.open .details-drawer {
+      max-height: 220px;
+      margin-top: 0.75rem;
+    }
+    .node-card.open .chevron {
+      transform: rotate(180deg);
+    }
+    .tree-stem { background-color: var(--line-color); }
+    .tree-branch { border-color: var(--line-color); }
+
+    /* Soft Pill Badges */
+    .badge-slate { background: var(--slate-bg); color: var(--slate-pill); border: 1px solid var(--slate-border); }
+    .badge-sand { background: var(--sand-bg); color: var(--sand-pill); border: 1px solid var(--sand-border); }
+    .badge-lavender { background: var(--lavender-bg); color: var(--lavender-pill); border: 1px solid var(--lavender-border); }
+    .badge-sage { background: var(--sage-bg); color: var(--sage-pill); border: 1px solid var(--sage-border); }
+    .badge-rose { background: var(--rose-bg); color: var(--rose-pill); border: 1px solid var(--rose-border); }
+  </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+
+  <!-- 1. TOP OVERVIEW TAB -->
+  <div class="w-full max-w-4xl surface-card rounded-xl p-5 mb-8 shadow-sm">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5" style="border-bottom: 1px solid var(--border-main);">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <span class="mono text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-md badge-slate font-medium">
+            Claude Workflow + Skill
+          </span>
+          <span class="text-xs" style="color: var(--text-muted);">Click any step to view I/O details</span>
+        </div>
+        <h1 class="text-lg md:text-xl font-semibold mt-1.5" style="color: var(--text-primary);">
+          Moodle Notification &amp; Homework Solver
+        </h1>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex items-center gap-2 self-start sm:self-center shrink-0">
+        <button onclick="toggleTheme()" id="themeBtn" class="mono text-xs px-2.5 py-1.5 rounded-lg transition" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+          ☀️ Paper
+        </button>
+        <button onclick="toggleAll()" id="toggleBtn" class="mono text-xs px-3 py-1.5 rounded-lg transition" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-primary);">
+          Expand All Specs
+        </button>
+      </div>
+    </div>
+
+    <p class="text-xs md:text-sm mt-3.5 leading-relaxed" style="color: var(--text-secondary);">
+      <strong style="color: var(--text-primary);">Overview:</strong> Polls university Moodle folders twice a week via Python, downloads new course materials to local storage, alerts the user on WhatsApp, and—upon confirmation—triggers the <strong style="color: var(--text-primary);">Homework Master</strong> Claude skill to either solve assignments using historical course context or summarize new lectures.
+    </p>
+
+    <!-- Supplements Bar -->
+    <div class="flex flex-wrap items-center gap-2 mt-3.5 pt-3 text-xs" style="border-top: 1px solid var(--border-main);">
+      <span class="font-medium" style="color: var(--text-muted);">Supplements:</span>
+      <span class="mono text-[11px] px-2.5 py-1 rounded-md" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+        🐍 Python Script (Moodle + WhatsApp API)
+      </span>
+      <span class="mono text-[11px] px-2.5 py-1 rounded-md" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+        📄 Academic Context File (Ethics Guardrail Bypass)
+      </span>
+      <span class="mono text-[11px] px-2.5 py-1 rounded-md" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+        🗂️ Depository: "Course Content"
+      </span>
+    </div>
+  </div>
+
+  <!-- 2. TREE DIAGRAM CANVAS -->
+  <div class="w-full max-w-4xl flex flex-col items-center">
+
+    <!-- WORKFLOW STEP 1 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-md">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-slate">
+          Workflow Step 1 • Trigger
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Scheduled Moodle API Poll</h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Runs every <strong>Monday &amp; Friday at 15:00</strong>. Calls the Moodle API script and fetches folder data across all enrolled courses.</p>
+      <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        <div><span style="color: var(--text-muted);">Method:</span> GET Moodle REST API (all course folders)</div>
+        <div><span style="color: var(--text-muted);">Schedule:</span> Mon &amp; Fri @ 15:00</div>
+      </div>
+    </div>
+
+    <!-- Vertical Stem -->
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- WORKFLOW STEP 2 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-md">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-slate">
+          Workflow Step 2 • Benchmark &amp; Sync
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Date Comparison &amp; Local Download</h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Benchmarks upload dates against the previous workflow run. If uploaded after the last run, downloads new files to <strong>Local Disk D:\</strong>.</p>
+      <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        <div><span style="color: var(--text-muted);">Condition:</span> upload_date &gt; last_workflow_run_date</div>
+        <div><span style="color: var(--text-muted);">Storage:</span> Local Disk D:\</div>
+      </div>
+    </div>
+
+    <!-- Vertical Stem into Split -->
+    <div class="w-px h-5 tree-stem"></div>
+    <!-- Horizontal Split Bar -->
+    <div class="w-1/2 h-4 border-t border-l border-r tree-branch rounded-t-lg"></div>
+
+    <!-- Two Parallel Notification Branches -->
+    <div class="w-full flex">
+      <!-- Left: Announcements -->
+      <div class="w-1/2 px-2 flex flex-col items-center">
+        <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5 w-full">
+          <div class="flex items-center justify-between">
+            <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sand">
+              If Announcement News
+            </span>
+            <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+          <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">Instant Announcement Alert</h4>
+          <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Calls WhatsApp API and sends a direct message informing of the new announcement.</p>
+          <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+            Action: Direct WhatsApp notification (No reply required)
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: New Documents / Sections -->
+      <div class="w-1/2 px-2 flex flex-col items-center">
+        <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5 w-full">
+          <div class="flex items-center justify-between">
+            <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sand">
+              If New Docs / Sections
+            </span>
+            <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+          <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">Summary &amp; Action Prompt</h4>
+          <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Crafts upload summary, sends via WhatsApp, and prompts user: <strong>"run"</strong> or <strong>"no"</strong>.</p>
+          <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+            Wait State: Listens for user WhatsApp reply
+          </div>
+        </div>
+
+        <!-- Stem continues from Right Branch (Workflow Step 3) -->
+        <div class="w-px h-5 tree-stem"></div>
+        <div class="mono text-[10px] px-2.5 py-0.5 rounded-full" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+          Workflow Step 3 • User Reply Gate
+        </div>
+        <div class="w-px h-4 tree-stem"></div>
+
+        <!-- Sub-branch Split for "no" vs "run" -->
+        <div class="w-1/2 h-3 border-t border-l border-r tree-branch rounded-t"></div>
+        <div class="w-full flex">
+          <!-- User replied "no" -->
+          <div class="w-1/2 pr-1.5 flex flex-col items-center">
+            <span class="mono text-[10px] font-medium mb-1" style="color: var(--rose-pill);">Reply: "no"</span>
+            <div class="rounded-lg p-2.5 w-full text-center badge-rose">
+              <span class="mono text-[9px] uppercase px-1.5 py-0.5 rounded font-medium" style="background: rgba(0,0,0,0.15);">Terminal Output</span>
+              <h5 class="text-xs font-semibold mt-1.5" style="color: var(--text-primary);">Log &amp; Halt</h5>
+              <p class="text-[10px] mt-0.5 leading-snug" style="color: var(--text-secondary);">Logs Moodle upload date + workflow execution date.</p>
+            </div>
+          </div>
+
+          <!-- User replied "run" -->
+          <div class="w-1/2 pl-1.5 flex flex-col items-center">
+            <span class="mono text-[10px] font-medium mb-1" style="color: var(--sage-pill);">Reply: "run"</span>
+            <div class="rounded-lg p-2.5 w-full text-center badge-lavender">
+              <span class="mono text-[9px] uppercase px-1.5 py-0.5 rounded font-medium" style="background: rgba(0,0,0,0.15);">Handoff</span>
+              <h5 class="text-xs font-semibold mt-1.5" style="color: var(--text-primary);">Sync &amp; Call Skill</h5>
+              <p class="text-[10px] mt-0.5 leading-snug" style="color: var(--text-secondary);">Uploads files to matched folder in <em>"Course Content"</em> &amp; calls Skill.</p>
+            </div>
+            <!-- Stem down to Claude Skill Container -->
+            <div class="w-px h-6 tree-stem"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. CLAUDE SKILL BOUNDARY BOX ("HOMEWORK MASTER") -->
+    <div class="w-full rounded-2xl p-5 flex flex-col items-center relative" style="background: var(--bg-subtle); border: 1px dashed var(--lavender-border);">
+      <div class="flex flex-wrap items-center justify-between gap-2 w-full mb-4">
+        <span class="mono text-xs font-medium uppercase tracking-wider px-3 py-1 rounded-md badge-lavender">
+          🧠 Claude Skill: "Homework Master"
+        </span>
+        <span class="mono text-[11px]" style="color: var(--text-muted);">Triggered on Reply = "run"</span>
+      </div>
+
+      <!-- SKILL STEP 1 & 2 -->
+      <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-md">
+        <div class="flex items-center justify-between">
+          <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">
+            Skill Steps 1 &amp; 2 • Context Ingestion
+          </span>
+          <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Analyze Request &amp; Call "Course Content" Depository</h3>
+        <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Parses the new materials sent by the workflow and retrieves all historical slides, notes, and references from the matched course folder.</p>
+        <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+          <div><span style="color: var(--text-muted);">Source:</span> Depository "Course Content" / {Matched Course Name}</div>
+          <div><span style="color: var(--text-muted);">Goal:</span> Ground Claude in specific syllabus &amp; lecture history</div>
+        </div>
+      </div>
+
+      <!-- Vertical Stem into Task Split -->
+      <div class="w-px h-5 tree-stem"></div>
+      <div class="mono text-[10px] px-2.5 py-0.5 rounded-full badge-lavender">
+        Skill Step 3 • Task Evaluation Router
+      </div>
+      <div class="w-px h-4 tree-stem"></div>
+
+      <!-- Horizontal Split Bar -->
+      <div class="w-1/2 h-4 border-t border-l border-r tree-branch rounded-t-lg"></div>
+
+      <!-- Two Branches: Specific Task vs No Specific Task -->
+      <div class="w-full flex">
+        <!-- Branch A: Specific Task -->
+        <div class="w-1/2 px-2 flex flex-col items-center">
+          <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5 w-full">
+            <div class="flex items-center justify-between">
+              <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">
+                Path A • Task Detected
+              </span>
+              <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+            <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">Accomplish Homework Task</h4>
+            <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Uses all available course depository content to solve the assignment/exercise step-by-step.</p>
+            <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+              Uses: Past lectures + Ethics context file for full solution
+            </div>
+          </div>
+        </div>
+
+        <!-- Branch B: No Specific Task -->
+        <div class="w-1/2 px-2 flex flex-col items-center">
+          <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5 w-full">
+            <div class="flex items-center justify-between">
+              <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">
+                Path B • No Task Found
+              </span>
+              <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+            <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">In-Depth Lecture Summary</h4>
+            <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Reads the newly uploaded Lecture or Exercise slides and crafts a comprehensive study summary.</p>
+            <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+              Output: Structured breakdown of lecture concepts
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Merge Bar back to center -->
+      <div class="w-1/2 h-4 border-b border-l border-r tree-branch rounded-b-lg"></div>
+      <div class="w-px h-5 tree-stem"></div>
+
+      <!-- SKILL STEP 4 -->
+      <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-md">
+        <div class="flex items-center justify-between">
+          <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">
+            Skill Step 4 • Pre-Week Synthesis
+          </span>
+          <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Bulletpoint News &amp; Class Prep</h3>
+        <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Summarizes any critical news, deadlines, or organizational info needed before the start of the new week and classes.</p>
+        <div class="details-drawer pt-2.5 text-[11px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+          Format: Actionable bulletpoint briefing appended to solution/summary
+        </div>
+      </div>
+    </div>
+
+    <!-- Final Connector Stem -->
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- 4. CLEARLY DEFINED FINAL OUTPUT -->
+    <div class="w-full max-w-lg rounded-xl p-5 badge-sage shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="mono text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded" style="background: rgba(0,0,0,0.12);">
+          ✅ Final Defined Output (Sent to WhatsApp)
+        </span>
+        <span class="mono text-[11px] font-medium">WhatsApp API</span>
+      </div>
+      <ul class="text-xs space-y-1.5 mt-3 list-disc list-inside leading-relaxed" style="color: var(--text-primary);">
+        <li><strong>Task Solution or Lecture Summary:</strong> Complete solved homework grounded in <em>Course Content</em> OR an in-depth lecture/exercise breakdown.</li>
+        <li><strong>Pre-Week Bulletpoint Briefing:</strong> Key announcements, schedule changes, and must-know items before Monday's classes.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <script>
+    let allOpen = false;
+    function toggleAll() {
+      allOpen = !allOpen;
+      document.querySelectorAll('.node-card').forEach(card => {
+        if (allOpen) card.classList.add('open');
+        else card.classList.remove('open');
+      });
+      document.getElementById('toggleBtn').textContent = allOpen ? 'Collapse All Specs' : 'Expand All Specs';
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('light-theme');
+      const isLight = document.body.classList.contains('light-theme');
+      document.getElementById('themeBtn').textContent = isLight ? '🌙 Dark' : '☀️ Paper';
+    }
+  </script>
+</body>
+</html>
