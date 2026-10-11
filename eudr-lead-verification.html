@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EUDR Lead Generation & HubSpot Verification — Tree Diagram</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    :root {
+      --bg-canvas: #191919;
+      --bg-dot: #262626;
+      --bg-card: #222222;
+      --bg-card-hover: #272727;
+      --bg-subtle: #1d1d1d;
+      --border-main: #333333;
+      --border-hover: #4a4a4a;
+      --line-color: #3d3d3d;
+      --text-primary: #e6e5e3;
+      --text-secondary: #a1a09c;
+      --text-muted: #73726e;
+
+      --slate-bg: rgba(148, 180, 211, 0.12);
+      --slate-pill: #94b4d3;
+      --slate-border: rgba(148, 180, 211, 0.25);
+
+      --sand-bg: rgba(217, 181, 113, 0.12);
+      --sand-pill: #d9b571;
+      --sand-border: rgba(217, 181, 113, 0.25);
+
+      --lavender-bg: rgba(177, 162, 202, 0.12);
+      --lavender-pill: #b9a9d4;
+      --lavender-border: rgba(177, 162, 202, 0.28);
+
+      --sage-bg: rgba(126, 178, 149, 0.12);
+      --sage-pill: #8ac2a3;
+      --sage-border: rgba(126, 178, 149, 0.3);
+
+      --rose-bg: rgba(209, 138, 138, 0.11);
+      --rose-pill: #d99b9b;
+      --rose-border: rgba(209, 138, 138, 0.28);
+    }
+
+    body.light-theme {
+      --bg-canvas: #f7f6f3;
+      --bg-dot: #e2e0d8;
+      --bg-card: #ffffff;
+      --bg-card-hover: #fcfbfa;
+      --bg-subtle: #f1f0ec;
+      --border-main: #e0ded7;
+      --border-hover: #c7c4bc;
+      --line-color: #ccc9c0;
+      --text-primary: #2c2c2b;
+      --text-secondary: #5c5b57;
+      --text-muted: #87857f;
+
+      --slate-bg: #eef3f8;
+      --slate-pill: #456b8c;
+      --slate-border: #cddce9;
+
+      --sand-bg: #faf3e6;
+      --sand-pill: #8f6824;
+      --sand-border: #e8d5b5;
+
+      --lavender-bg: #f3f0f9;
+      --lavender-pill: #5e4b80;
+      --lavender-border: #d9d0ea;
+
+      --sage-bg: #eaf4ee;
+      --sage-pill: #2f6f4e;
+      --sage-border: #c1decb;
+
+      --rose-bg: #faeeee;
+      --rose-pill: #944040;
+      --rose-border: #e8c5c5;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-canvas);
+      background-image: radial-gradient(var(--bg-dot) 1px, transparent 1px);
+      background-size: 20px 20px;
+      color: var(--text-primary);
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .surface-card { background: var(--bg-card); border: 1px solid var(--border-main); }
+    .node-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-main);
+      transition: all 0.2s ease;
+    }
+    .node-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.2);
+    }
+    .details-drawer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease-out, margin-top 0.2s ease;
+    }
+    .node-card.open .details-drawer {
+      max-height: 260px;
+      margin-top: 0.75rem;
+    }
+    .node-card.open .chevron { transform: rotate(180deg); }
+    .tree-stem { background-color: var(--line-color); }
+    .tree-branch { border-color: var(--line-color); }
+
+    .badge-slate { background: var(--slate-bg); color: var(--slate-pill); border: 1px solid var(--slate-border); }
+    .badge-sand { background: var(--sand-bg); color: var(--sand-pill); border: 1px solid var(--sand-border); }
+    .badge-lavender { background: var(--lavender-bg); color: var(--lavender-pill); border: 1px solid var(--lavender-border); }
+    .badge-sage { background: var(--sage-bg); color: var(--sage-pill); border: 1px solid var(--sage-border); }
+    .badge-rose { background: var(--rose-bg); color: var(--rose-pill); border: 1px solid var(--rose-border); }
+  </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+
+  <!-- 1. TOP OVERVIEW TAB -->
+  <div class="w-full max-w-4xl surface-card rounded-xl p-5 mb-8 shadow-sm">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5" style="border-bottom: 1px solid var(--border-main);">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <span class="mono text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-md badge-slate font-medium">
+            Claude Skill • GTM Lead Generation
+          </span>
+          <span class="text-xs" style="color: var(--text-muted);">Click any step to view I/O details</span>
+        </div>
+        <h1 class="text-lg md:text-xl font-semibold mt-1.5" style="color: var(--text-primary);">
+          osapiens EUDR Lead Generation &amp; HubSpot Verification
+        </h1>
+      </div>
+
+      <div class="flex items-center gap-2 self-start sm:self-center shrink-0">
+        <button onclick="toggleTheme()" id="themeBtn" class="mono text-xs px-2.5 py-1.5 rounded-lg transition" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+          ☀️ Paper
+        </button>
+        <button onclick="toggleAll()" id="toggleBtn" class="mono text-xs px-3 py-1.5 rounded-lg transition" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-primary);">
+          Expand All Specs
+        </button>
+      </div>
+    </div>
+
+    <p class="text-xs md:text-sm mt-3.5 leading-relaxed" style="color: var(--text-secondary);">
+      <strong style="color: var(--text-primary);">Overview:</strong> Generates fresh, ICP-fit leads for the osapiens EUDR compliance solution via Apollo.io based on geography and animal sizing tiers, cross-checks every contact against HubSpot CRM to filter out prospects contacted within the last 30 days, ranks net-new vs. cold re-engagement leads, enriches verified profiles, and exports a ready-for-outreach CSV.
+    </p>
+
+    <div class="flex flex-wrap items-center gap-2 mt-3.5 pt-3 text-xs" style="border-top: 1px solid var(--border-main);">
+      <span class="font-medium" style="color: var(--text-muted);">Playbooks &amp; Connectors:</span>
+      <span class="mono text-[11px] px-2.5 py-1 rounded-md" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+        🐾 Animal Tiers (Whale / Elephant / Rhino / Bear / Fox)
+      </span>
+      <span class="mono text-[11px] px-2.5 py-1 rounded-md" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+        🚀 Apollo.io Search &amp; Enrichment
+      </span>
+      <span class="mono text-[11px] px-2.5 py-1 rounded-md" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+        🟠 HubSpot CRM Connector
+      </span>
+    </div>
+  </div>
+
+  <!-- 2. TREE DIAGRAM CANVAS -->
+  <div class="w-full max-w-4xl flex flex-col items-center">
+
+    <!-- STEP 0 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-lg">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-slate">
+          Step 0 • Parse Trigger &amp; Sizing Playbook
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Extract <code>{{number}}</code>, <code>{{location}}</code> &amp; <code>{{tier}}</code></h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Expands regional shorthands (<code>DACH &rarr; DE, AT, CH</code>; <code>BENELUX &rarr; BE, NL, LU</code>) and maps optional animal tiers to employee/revenue filters. Prompts user and waits if <code>{{number}}</code> is missing.</p>
+      <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        <div><span style="color: var(--text-muted);">WHALE (Both):</span> &gt;25k emp &amp; &gt;$10bn rev | <span style="color: var(--text-muted);">ELEPHANT:</span> 10k–25k or $5–10bn</div>
+        <div><span style="color: var(--text-muted);">RHINO:</span> 3k–10k or $2–5bn | <span style="color: var(--text-muted);">BEAR:</span> 750–3k | <span style="color: var(--text-muted);">FOX:</span> &lt;750 emp</div>
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- STEP 1 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-lg">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">
+          Step 1 • Apollo.io EUDR ICP People Search
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Query EUDR Industries &amp; Buying Personas</h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Filters by EUDR-exposed industries (Retail, Food/Bev, Timber/Furniture, Paper/Packaging, Automotive) and decision-maker departments (Sustainability, Supply Chain, Procurement, Compliance, ESG, Legal).</p>
+      <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        <div><span style="color: var(--text-muted);">Seniority:</span> Manager, Director, Head of Dept, VP, C-Suite</div>
+        <div><span style="color: var(--text-muted);">Fallbacks:</span> If &lt; {{number}} found, asks user before continuing</div>
+      </div>
+    </div>
+
+    <div class="w-px h-5 tree-stem"></div>
+    <div class="mono text-[10px] px-2.5 py-0.5 rounded-full badge-sand">
+      Step 2 • HubSpot Enrollment &amp; 30-Day Cooling Filter
+    </div>
+    <div class="w-px h-4 tree-stem"></div>
+
+    <!-- 3-Way Split for Step 2 HubSpot Check -->
+    <div class="w-2/3 h-3 border-t border-l border-r tree-branch rounded-t"></div>
+    <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-3">
+      <!-- Left: Remove (<30 days) -->
+      <div class="rounded-xl p-3.5 badge-rose">
+        <span class="mono text-[10px] uppercase font-semibold block">Contacted &lt; 30 Days Ago</span>
+        <h4 class="text-xs font-semibold mt-1.5" style="color: var(--text-primary);">Remove from Table</h4>
+        <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Drops recently contacted prospects completely to prevent outreach collision.</p>
+      </div>
+
+      <!-- Center: Net-New -->
+      <div class="rounded-xl p-3.5 badge-sage">
+        <span class="mono text-[10px] uppercase font-semibold block">Not Found in HubSpot</span>
+        <h4 class="text-xs font-semibold mt-1.5" style="color: var(--text-primary);">ENROLLED IN HS = No</h4>
+        <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Classified as <code>NOT ENROLLED</code> (Net-New Lead). Placed at top priority.</p>
+      </div>
+
+      <!-- Right: Cold Re-engagement -->
+      <div class="rounded-xl p-3.5 badge-sand">
+        <span class="mono text-[10px] uppercase font-semibold block">Contacted &ge; 30 Days Ago</span>
+        <h4 class="text-xs font-semibold mt-1.5" style="color: var(--text-primary);">ENROLLED IN HS = Yes</h4>
+        <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Retained as cold re-engagement candidate with factual <code>Last Contacted Date</code>.</p>
+      </div>
+    </div>
+
+    <div class="w-2/3 h-3 border-b border-l border-r tree-branch rounded-b"></div>
+    <div class="w-px h-5 tree-stem"></div>
+
+    <!-- STEP 3 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-md">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-slate">
+          Step 3 • Priority Sorting &amp; Ranking
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Surface Freshest Opportunities First</h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Places all <code>ENROLLED IN HS = No</code> (net-new leads) at the top of the table, followed by <code>ENROLLED IN HS = Yes</code> sorted ascending by Last Contacted Date (oldest contacted first).</p>
+      <div class="details-drawer pt-2.5 text-[11px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        Sort Rule: Net-New first &rarr; Earliest Last Contacted &rarr; Most Recently Contacted
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- STEP 4 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-md">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">
+          Step 4 • Apollo Contact Enrichment
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Populate Verified Contact &amp; Company Fields</h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Passes the filtered, ranked list back through Apollo Enrichment to populate primary verified <code>Email</code>, <code>Location (City, Country)</code>, <code>Seniority</code>, <code>Job Title</code>, <code>Company Domain</code>, and <code>LinkedIn URL</code>.</p>
+      <div class="details-drawer pt-2.5 text-[11px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        Guardrail: Leave unavailable fields blank; never fabricate data
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- 4. FINAL OUTPUT -->
+    <div class="w-full max-w-lg rounded-xl p-5 badge-sage shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="mono text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded" style="background: rgba(0,0,0,0.12);">
+          ✅ Steps 5 &amp; 6 • Final Defined Output
+        </span>
+        <span class="mono text-[11px] font-medium">Ranked CSV + Run Summary</span>
+      </div>
+      <ul class="text-xs space-y-1.5 mt-3 list-disc list-inside leading-relaxed" style="color: var(--text-primary);">
+        <li><strong>12-Column Outreach CSV:</strong> Saved to <code>C:\Claude Skills\Claude Test EUDR ICP\eudr-{{number}}-{{location}}-{{YYYY-MM-DD}}.csv</code> and attached in chat.</li>
+        <li><strong>Executive Run Summary:</strong> Reports Region, Total Found, Removed (&lt;30 days), Net-New count, and Cold Re-engagement count.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <script>
+    let allOpen = false;
+    function toggleAll() {
+      allOpen = !allOpen;
+      document.querySelectorAll('.node-card').forEach(card => {
+        if (allOpen) card.classList.add('open');
+        else card.classList.remove('open');
+      });
+      document.getElementById('toggleBtn').textContent = allOpen ? 'Collapse All Specs' : 'Expand All Specs';
+    }
+    function toggleTheme() {
+      document.body.classList.toggle('light-theme');
+      const isLight = document.body.classList.contains('light-theme');
+      document.getElementById('themeBtn').textContent = isLight ? '🌙 Dark' : '☀️ Paper';
+    }
+  </script>
+</body>
+</html>
