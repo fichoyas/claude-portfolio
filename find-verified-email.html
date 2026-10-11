@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find & Verify Deliverable Work Email — Tree Diagram</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    :root {
+      --bg-canvas: #191919;
+      --bg-dot: #262626;
+      --bg-card: #222222;
+      --bg-card-hover: #272727;
+      --bg-subtle: #1d1d1d;
+      --border-main: #333333;
+      --border-hover: #4a4a4a;
+      --line-color: #3d3d3d;
+      --text-primary: #e6e5e3;
+      --text-secondary: #a1a09c;
+      --text-muted: #73726e;
+
+      --slate-bg: rgba(148, 180, 211, 0.12);
+      --slate-pill: #94b4d3;
+      --slate-border: rgba(148, 180, 211, 0.25);
+
+      --sand-bg: rgba(217, 181, 113, 0.12);
+      --sand-pill: #d9b571;
+      --sand-border: rgba(217, 181, 113, 0.25);
+
+      --lavender-bg: rgba(177, 162, 202, 0.12);
+      --lavender-pill: #b9a9d4;
+      --lavender-border: rgba(177, 162, 202, 0.28);
+
+      --sage-bg: rgba(126, 178, 149, 0.12);
+      --sage-pill: #8ac2a3;
+      --sage-border: rgba(126, 178, 149, 0.3);
+
+      --rose-bg: rgba(209, 138, 138, 0.11);
+      --rose-pill: #d99b9b;
+      --rose-border: rgba(209, 138, 138, 0.28);
+    }
+
+    body.light-theme {
+      --bg-canvas: #f7f6f3;
+      --bg-dot: #e2e0d8;
+      --bg-card: #ffffff;
+      --bg-card-hover: #fcfbfa;
+      --bg-subtle: #f1f0ec;
+      --border-main: #e0ded7;
+      --border-hover: #c7c4bc;
+      --line-color: #ccc9c0;
+      --text-primary: #2c2c2b;
+      --text-secondary: #5c5b57;
+      --text-muted: #87857f;
+
+      --slate-bg: #eef3f8;
+      --slate-pill: #456b8c;
+      --slate-border: #cddce9;
+
+      --sand-bg: #faf3e6;
+      --sand-pill: #8f6824;
+      --sand-border: #e8d5b5;
+
+      --lavender-bg: #f3f0f9;
+      --lavender-pill: #5e4b80;
+      --lavender-border: #d9d0ea;
+
+      --sage-bg: #eaf4ee;
+      --sage-pill: #2f6f4e;
+      --sage-border: #c1decb;
+
+      --rose-bg: #faeeee;
+      --rose-pill: #944040;
+      --rose-border: #e8c5c5;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-canvas);
+      background-image: radial-gradient(var(--bg-dot) 1px, transparent 1px);
+      background-size: 20px 20px;
+      color: var(--text-primary);
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .surface-card { background: var(--bg-card); border: 1px solid var(--border-main); }
+    .node-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-main);
+      transition: all 0.2s ease;
+    }
+    .node-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.2);
+    }
+    .details-drawer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease-out, margin-top 0.2s ease;
+    }
+    .node-card.open .details-drawer {
+      max-height: 240px;
+      margin-top: 0.75rem;
+    }
+    .node-card.open .chevron { transform: rotate(180deg); }
+    .tree-stem { background-color: var(--line-color); }
+    .tree-branch { border-color: var(--line-color); }
+
+    .badge-slate { background: var(--slate-bg); color: var(--slate-pill); border: 1px solid var(--slate-border); }
+    .badge-sand { background: var(--sand-bg); color: var(--sand-pill); border: 1px solid var(--sand-border); }
+    .badge-lavender { background: var(--lavender-bg); color: var(--lavender-pill); border: 1px solid var(--lavender-border); }
+    .badge-sage { background: var(--sage-bg); color: var(--sage-pill); border: 1px solid var(--sage-border); }
+    .badge-rose { background: var(--rose-bg); color: var(--rose-pill); border: 1px solid var(--rose-border); }
+  </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+
+  <!-- 1. TOP OVERVIEW TAB -->
+  <div class="w-full max-w-4xl surface-card rounded-xl p-5 mb-8 shadow-sm">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5" style="border-bottom: 1px solid var(--border-main);">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <span class="mono text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-md badge-slate font-medium">
+            Claude Skill • Outbound Deliverability
+          </span>
+          <span class="text-xs" style="color: var(--text-muted);">Click any step to view I/O details</span>
+        </div>
+        <h1 class="text-lg md:text-xl font-semibold mt-1.5" style="color: var(--text-primary);">
+          Find &amp; Verify Deliverable Work Email
+        </h1>
+      </div>
+
+      <div class="flex items-center gap-2 self-start sm:self-center shrink-0">
+        <button onclick="toggleTheme()" id="themeBtn" class="mono text-xs px-2.5 py-1.5 rounded-lg transition" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+          ☀️ Paper
+        </button>
+        <button onclick="toggleAll()" id="toggleBtn" class="mono text-xs px-3 py-1.5 rounded-lg transition" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-primary);">
+          Expand All Specs
+        </button>
+      </div>
+    </div>
+
+    <p class="text-xs md:text-sm mt-3.5 leading-relaxed" style="color: var(--text-secondary);">
+      <strong style="color: var(--text-primary);">Overview:</strong> Generates statistically ranked candidate work email addresses from a prospect's name and company domain via Python, then sequentially probes the target mail server using the <strong>NinjaMailTester API</strong> with self-throttling and repeat-block detection to confirm real deliverability before outreach.
+    </p>
+
+    <div class="flex flex-wrap items-center gap-2 mt-3.5 pt-3 text-xs" style="border-top: 1px solid var(--border-main);">
+      <span class="font-medium" style="color: var(--text-muted);">Supplements &amp; Tools:</span>
+      <span class="mono text-[11px] px-2.5 py-1 rounded-md" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+        🐍 scripts/generate_formats.py
+      </span>
+      <span class="mono text-[11px] px-2.5 py-1 rounded-md" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+        📄 references/email-formats.md
+      </span>
+      <span class="mono text-[11px] px-2.5 py-1 rounded-md" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+        🥷 mailtester-ninja API (verify_email)
+      </span>
+    </div>
+  </div>
+
+  <!-- 2. TREE DIAGRAM CANVAS -->
+  <div class="w-full max-w-4xl flex flex-col items-center">
+
+    <!-- STEP 1 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-md">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-slate">
+          Step 1 • Parse Input &amp; Clean Domain
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Extract Name Tokens &amp; Normalize Domain</h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Accepts a single prospect or bulk list. Extracts <code>first</code>, <code>last</code>, and optional <code>middle</code> names. Strips <code>http(s)://</code>, <code>www.</code>, paths, and query params from the domain (or resolves company domain via web search).</p>
+      <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        <div><span style="color: var(--text-muted);">Mode:</span> Single lookup or sequential Bulk Mode</div>
+        <div><span style="color: var(--text-muted);">Input:</span> First Name, Last Name, Cleaned Bare Domain</div>
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- STEP 2 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-md">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">
+          Step 2 • Candidate Generation Script
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Run <code>scripts/generate_formats.py</code></h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Transliterates accents/non-Latin scripts to plain ASCII, strips titles (<code>Dr.</code>, <code>Jr.</code>) and punctuation, and outputs ~28–42 candidate emails ordered by statistical likelihood.</p>
+      <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        <div><span style="color: var(--text-muted);">CLI:</span> python scripts/generate_formats.py --first &lt;f&gt; --last &lt;l&gt; --domain &lt;d&gt;</div>
+        <div><span style="color: var(--text-muted);">Output:</span> Prioritized JSON array [{"format": ..., "email": ...}]</div>
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- STEP 3 BOUNDARY BOX: SEQUENTIAL VERIFICATION LOOP -->
+    <div class="w-full rounded-2xl p-5 flex flex-col items-center" style="background: var(--bg-subtle); border: 1px dashed var(--slate-border);">
+      <div class="flex flex-wrap items-center justify-between gap-2 w-full mb-4">
+        <span class="mono text-xs font-medium uppercase tracking-wider px-3 py-1 rounded-md badge-slate">
+          🥷 Step 3 • Sequential Mail Server Verification Loop
+        </span>
+        <span class="mono text-[11px]" style="color: var(--text-muted);">Throttle: &le; 8 requests / 10s (~1.25s interval)</span>
+      </div>
+
+      <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-md">
+        <div class="flex items-center justify-between">
+          <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-slate">
+            One-at-a-Time Probe (Never Parallel)
+          </span>
+          <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Call <code>mailtester-ninja</code> API</h3>
+        <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Queries <code>https://happy.mailtester.ninja/ninja</code> sequentially for each candidate in priority order and inspects the returned <code>code</code> and <code>message</code>.</p>
+        <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+          <div><span style="color: var(--text-muted);">Why Sequential:</span> Prevents stream/permission errors &amp; respects 11/10s limit</div>
+          <div><span style="color: var(--text-muted);">Response Fields:</span> email, mx, code ("ok" | "mb" | "ko"), message</div>
+        </div>
+      </div>
+
+      <div class="w-px h-5 tree-stem"></div>
+      <div class="mono text-[10px] px-2.5 py-0.5 rounded-full badge-sand">
+        Response Code &amp; Repeat-Block Router
+      </div>
+      <div class="w-px h-4 tree-stem"></div>
+
+      <!-- 4-Branch Response Grid -->
+      <div class="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <!-- Branch 1: OK -->
+        <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sage">
+                code: "ok"
+              </span>
+              <svg class="chevron w-3.5 h-3.5 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+            <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">Accepted (Valid)</h4>
+            <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Deliverable address confirmed. <strong>Stop testing immediately</strong> for this person.</p>
+          </div>
+          <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--sage-pill);">
+            Action: Break loop &rarr; Report Valid
+          </div>
+        </div>
+
+        <!-- Branch 2: Catch-All -->
+        <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sand">
+                code: "mb" • Catch-All
+              </span>
+              <svg class="chevron w-3.5 h-3.5 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+            <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">Catch-All Domain</h4>
+            <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Domain accepts everything. Log as Catch-All candidate, but <strong>keep testing</strong> for a hard <code>ok</code>.</p>
+          </div>
+          <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--sand-pill);">
+            Action: Record hit &rarr; Test next format
+          </div>
+        </div>
+
+        <!-- Branch 3: Rejected -->
+        <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-slate">
+                code: "ko" / Single "mb"
+              </span>
+              <svg class="chevron w-3.5 h-3.5 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+            <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">Rejected Candidate</h4>
+            <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Address rejected or single transient error. Increment rejected counter and test next format.</p>
+          </div>
+          <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+            Action: Advance to next candidate
+          </div>
+        </div>
+
+        <!-- Branch 4: Repeat Block -->
+        <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-rose">
+                2x Identical "mb" Error
+              </span>
+              <svg class="chevron w-3.5 h-3.5 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+            <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">Repeat-Block Circuit Breaker</h4>
+            <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Two consecutive <code>SPAM Block</code> or <code>No Mx</code> hits. <strong>Abort testing immediately</strong> for this person.</p>
+          </div>
+          <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--rose-pill);">
+            Status: Undeterminable (Server blocking probes)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- 4. FINAL OUTPUT -->
+    <div class="w-full max-w-lg rounded-xl p-5 badge-sage shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="mono text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded" style="background: rgba(0,0,0,0.12);">
+          ✅ Step 4 • Final Defined Output (Chat Report)
+        </span>
+        <span class="mono text-[11px] font-medium">Per-Person or Bulk Grouped</span>
+      </div>
+      <ul class="text-xs space-y-1.5 mt-3 list-disc list-inside leading-relaxed" style="color: var(--text-primary);">
+        <li><strong>Valid Deliverable Address:</strong> Exact email confirmed with <code>ok / Accepted</code>.</li>
+        <li><strong>Catch-All / Undeterminable Notice:</strong> Clearly labeled unconfirmed Catch-All hits or server-block status.</li>
+        <li><strong>Clean Rejection Count &amp; Fallback:</strong> Single-line count of rejected formats (e.g., <em>"24 other formats tested, all rejected"</em>) plus the #1 statistical convention flagged as <code>unverified</code> if nothing matched.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <script>
+    let allOpen = false;
+    function toggleAll() {
+      allOpen = !allOpen;
+      document.querySelectorAll('.node-card').forEach(card => {
+        if (allOpen) card.classList.add('open');
+        else card.classList.remove('open');
+      });
+      document.getElementById('toggleBtn').textContent = allOpen ? 'Collapse All Specs' : 'Expand All Specs';
+    }
+    function toggleTheme() {
+      document.body.classList.toggle('light-theme');
+      const isLight = document.body.classList.contains('light-theme');
+      document.getElementById('themeBtn').textContent = isLight ? '🌙 Dark' : '☀️ Paper';
+    }
+  </script>
+</body>
+</html>
