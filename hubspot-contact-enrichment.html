@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HubSpot Contact Enrichment & Email Pattern Analyzer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    
+    :root {
+      --bg-canvas: #191919;
+      --bg-dot: #262626;
+      --bg-card: #222222;
+      --bg-card-hover: #272727;
+      --bg-subtle: #1d1d1d;
+      --border-main: #333333;
+      --border-hover: #4a4a4a;
+      --line-color: #3d3d3d;
+      --text-primary: #e6e5e3;
+      --text-secondary: #a1a09c;
+      --text-muted: #73726e;
+
+      --slate-bg: rgba(148, 180, 211, 0.12);
+      --slate-pill: #94b4d3;
+      --slate-border: rgba(148, 180, 211, 0.25);
+
+      --sand-bg: rgba(217, 181, 113, 0.12);
+      --sand-pill: #d9b571;
+      --sand-border: rgba(217, 181, 113, 0.25);
+
+      --lavender-bg: rgba(177, 162, 202, 0.12);
+      --lavender-pill: #b9a9d4;
+      --lavender-border: rgba(177, 162, 202, 0.28);
+
+      --sage-bg: rgba(126, 178, 149, 0.12);
+      --sage-pill: #8ac2a3;
+      --sage-border: rgba(126, 178, 149, 0.3);
+
+      --rose-bg: rgba(209, 138, 138, 0.11);
+      --rose-pill: #d99b9b;
+      --rose-border: rgba(209, 138, 138, 0.28);
+    }
+
+    body.light-theme {
+      --bg-canvas: #f7f6f3;
+      --bg-dot: #e2e0d8;
+      --bg-card: #ffffff;
+      --bg-card-hover: #fcfbfa;
+      --bg-subtle: #f1f0ec;
+      --border-main: #e0ded7;
+      --border-hover: #c7c4bc;
+      --line-color: #ccc9c0;
+      --text-primary: #2c2c2b;
+      --text-secondary: #5c5b57;
+      --text-muted: #87857f;
+
+      --slate-bg: #eef3f8;
+      --slate-pill: #456b8c;
+      --slate-border: #cddce9;
+
+      --sand-bg: #faf3e6;
+      --sand-pill: #8f6824;
+      --sand-border: #e8d5b5;
+
+      --lavender-bg: #f3f0f9;
+      --lavender-pill: #5e4b80;
+      --lavender-border: #d9d0ea;
+
+      --sage-bg: #eaf4ee;
+      --sage-pill: #2f6f4e;
+      --sage-border: #c1decb;
+
+      --rose-bg: #faeeee;
+      --rose-pill: #944040;
+      --rose-border: #e8c5c5;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-canvas);
+      background-image: radial-gradient(var(--bg-dot) 1px, transparent 1px);
+      background-size: 20px 20px;
+      color: var(--text-primary);
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .surface-card { background: var(--bg-card); border: 1px solid var(--border-main); }
+    .node-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-main);
+      transition: all 0.2s ease;
+    }
+    .node-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.2);
+    }
+    .details-drawer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease-out, margin-top 0.2s ease;
+    }
+    .node-card.open .details-drawer {
+      max-height: 260px;
+      margin-top: 0.75rem;
+    }
+    .node-card.open .chevron { transform: rotate(180deg); }
+    .tree-stem { background-color: var(--line-color); }
+    .tree-branch { border-color: var(--line-color); }
+
+    .badge-slate { background: var(--slate-bg); color: var(--slate-pill); border: 1px solid var(--slate-border); }
+    .badge-sand { background: var(--sand-bg); color: var(--sand-pill); border: 1px solid var(--sand-border); }
+    .badge-lavender { background: var(--lavender-bg); color: var(--lavender-pill); border: 1px solid var(--lavender-border); }
+    .badge-sage { background: var(--sage-bg); color: var(--sage-pill); border: 1px solid var(--sage-border); }
+    .badge-rose { background: var(--rose-bg); color: var(--rose-pill); border: 1px solid var(--rose-border); }
+  </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+
+  <!-- 1. TOP OVERVIEW TAB -->
+  <div class="w-full max-w-4xl surface-card rounded-xl p-5 mb-8 shadow-sm">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5" style="border-bottom: 1px solid var(--border-main);">
+      <div>
+        <div class="flex items-center gap-2.5">
+          <span class="mono text-[11px] uppercase tracking-wider px-2.5 py-0.5 rounded-md badge-slate font-medium">
+            Claude Skill + Deterministic Python Script
+          </span>
+          <span class="text-xs" style="color: var(--text-muted);">Click any step to view I/O details</span>
+        </div>
+        <h1 class="text-lg md:text-xl font-semibold mt-1.5" style="color: var(--text-primary);">
+          HubSpot Contact Enrichment &amp; Non-Accepted Email Analyzer
+        </h1>
+      </div>
+
+      <div class="flex items-center gap-2 self-start sm:self-center shrink-0">
+        <button onclick="toggleTheme()" id="themeBtn" class="mono text-xs px-2.5 py-1.5 rounded-lg transition" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+          ☀️ Paper
+        </button>
+        <button onclick="toggleAll()" id="toggleBtn" class="mono text-xs px-3 py-1.5 rounded-lg transition" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-primary);">
+          Expand All Specs
+        </button>
+      </div>
+    </div>
+
+    <p class="text-xs md:text-sm mt-3.5 leading-relaxed" style="color: var(--text-secondary);">
+      <strong style="color: var(--text-primary);">Overview:</strong> Enriches an uploaded Apollo contact workbook with factual HubSpot CRM identifiers, color-coded last-contacted dates, and deal associations—then invokes a deterministic Python script (<code>analyze_nonaccepted_emails.py</code>) using up to 10 verified HubSpot colleague emails per company to infer missing/non-Accepted email formats with strict confidence scoring.
+    </p>
+
+    <div class="flex flex-wrap items-center gap-2 mt-3.5 pt-3 text-xs" style="border-top: 1px solid var(--border-main);">
+      <span class="font-medium" style="color: var(--text-muted);">Supplements:</span>
+      <span class="mono text-[11px] px-2.5 py-1 rounded-md" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+        📊 Apollo Contacts File + HubSpot Companies Lookup File
+      </span>
+      <span class="mono text-[11px] px-2.5 py-1 rounded-md" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+        🐍 scripts/analyze_nonaccepted_emails.py
+      </span>
+      <span class="mono text-[11px] px-2.5 py-1 rounded-md" style="background: var(--bg-subtle); border: 1px solid var(--border-main); color: var(--text-secondary);">
+        🟠 HubSpot CRM Connector (Zero-Fabrication Rule)
+      </span>
+    </div>
+  </div>
+
+  <!-- 2. TREE DIAGRAM CANVAS -->
+  <div class="w-full max-w-4xl flex flex-col items-center">
+
+    <!-- STEP 1 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-md">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-slate">
+          Step 1 • Content-Based Input Inspection
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Distinguish Apollo vs. HubSpot Files</h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Identifies files by column structure (Contact columns vs. Company Domain + Record ID). Reads all Record IDs strictly as text (<code>dtype=str</code>) so long IDs never corrupt into floats or scientific notation.</p>
+      <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        <div><span style="color: var(--text-muted);">Guardrail:</span> Preserves all source data; halts if lookup file is missing</div>
+      </div>
+    </div>
+
+    <div class="w-px h-5 tree-stem"></div>
+    <div class="mono text-[10px] px-2.5 py-0.5 rounded-full badge-slate">
+      Step 2 • Sandbox Domain Normalization &amp; Company ID Lookup
+    </div>
+    <div class="w-px h-4 tree-stem"></div>
+
+    <!-- 3-Way Split for Step 2 Company Match -->
+    <div class="w-2/3 h-3 border-t border-l border-r tree-branch rounded-t"></div>
+    <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5">
+        <div class="flex items-center justify-between">
+          <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sage">Exact Domain Match</span>
+          <svg class="chevron w-3.5 h-3.5 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">Copy Company Record ID</h4>
+        <p class="text-[11px] mt-1" style="color: var(--text-secondary);">Matches normalized bare domain in Python sandbox (saving API tokens) and computes <code>Number of Contacts</code> per domain. No cell fill.</p>
+        <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+          v1 Mode Option: Queries HubSpot API once per unique domain
+        </div>
+      </div>
+
+      <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5">
+        <div class="flex items-center justify-between">
+          <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sand">Close Match (&ge;90% / TLD)</span>
+          <svg class="chevron w-3.5 h-3.5 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">Copy ID + Flag Yellow</h4>
+        <p class="text-[11px] mt-1" style="color: var(--text-secondary);">Matches alternate TLD (<code>.com</code> vs <code>.de</code>) or SequenceMatcher &ge; 0.90. Populates ID and colors cell <strong>Yellow</strong>.</p>
+        <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--sand-pill);">
+          Ambiguous Ties: Treated as unmatched (left blank)
+        </div>
+      </div>
+
+      <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5">
+        <div class="flex items-center justify-between">
+          <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-rose">No Match / Conflict</span>
+          <svg class="chevron w-3.5 h-3.5 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">Leave Blank &amp; Report</h4>
+        <p class="text-[11px] mt-1" style="color: var(--text-secondary);">Leaves <code>Company Record ID</code> blank with no fill. Reports duplicate conflicting lookup IDs to user.</p>
+        <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--rose-pill);">
+          Rule: Never invent or guess a Company Record ID
+        </div>
+      </div>
+    </div>
+
+    <div class="w-2/3 h-3 border-b border-l border-r tree-branch rounded-b"></div>
+    <div class="w-px h-5 tree-stem"></div>
+
+    <!-- STEP 3 -->
+    <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-md">
+      <div class="flex items-center justify-between">
+        <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-slate">
+          Step 3 • Contact Resolution &amp; Latin Fallback
+        </span>
+        <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+      <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Retrieve Verified <code>Contact Record ID</code></h3>
+      <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">Searches HubSpot by <code>First + Last Name</code> and confirms match against the resolved <code>Company Record ID</code>. Retries with Latin transliteration (<code>Weiß &rarr; Weiss</code>, <code>Østergaard &rarr; Ostergaard</code>) if needed.</p>
+      <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+        <div><span style="color: var(--text-muted);">Gate:</span> Only contacts with a verified Contact Record ID advance to Step 4</div>
+      </div>
+    </div>
+
+    <div class="w-px h-5 tree-stem"></div>
+    <div class="mono text-[10px] px-2.5 py-0.5 rounded-full badge-sand">
+      Step 4 • Retrieve Last Contacted &amp; Deal Associations
+    </div>
+    <div class="w-px h-4 tree-stem"></div>
+
+    <!-- Step 4 Dual Split -->
+    <div class="w-1/2 h-3 border-t border-l border-r tree-branch rounded-t"></div>
+    <div class="w-full flex">
+      <div class="w-1/2 px-2">
+        <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5 w-full">
+          <div class="flex items-center justify-between">
+            <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sand">4.1 • Last Contacted</span>
+            <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+          <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">3-Month Cutoff Color Coding</h4>
+          <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Writes <code>YYYY-MM-DD</code> or <code>never contacted</code>. Colors cell <strong>Red</strong> if contacted &lt; 3 months ago, or <strong>Green</strong> if &ge; 3 months ago.</p>
+          <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+            API Failure: Leave blank (never write "never contacted" on error)
+          </div>
+        </div>
+      </div>
+
+      <div class="w-1/2 px-2">
+        <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-3.5 w-full">
+          <div class="flex items-center justify-between">
+            <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-sand">4.2 • DEAL Status</span>
+            <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+          <h4 class="text-xs font-semibold mt-2" style="color: var(--text-primary);">Check Deal Associations</h4>
+          <p class="text-[11px] mt-1 leading-relaxed" style="color: var(--text-secondary);">Checks any deal stage (open, won, lost). Writes <code>DEAL</code>, <code>NO DEAL</code> (confirmed zero), or <code>NO LOOKUP</code> (on API error).</p>
+          <div class="details-drawer pt-2 text-[10px] mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+            Guardrail: Never write NO DEAL if lookup failed
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-1/2 h-3 border-b border-l border-r tree-branch rounded-b"></div>
+    <div class="w-px h-5 tree-stem"></div>
+
+    <!-- STEP 5 BOUNDARY BOX: PYTHON EMAIL PATTERN ANALYZER -->
+    <div class="w-full rounded-2xl p-5 flex flex-col items-center" style="background: var(--bg-subtle); border: 1px dashed var(--lavender-border);">
+      <div class="flex flex-wrap items-center justify-between gap-2 w-full mb-4">
+        <span class="mono text-xs font-medium uppercase tracking-wider px-3 py-1 rounded-md badge-lavender">
+          🐍 Step 5 • Deterministic Non-Accepted Email Analyzer (analyze_nonaccepted_emails.py)
+        </span>
+        <span class="mono text-[11px]" style="color: var(--text-muted);">Skips rows where Email Verification == "Accepted"</span>
+      </div>
+
+      <div onclick="this.classList.toggle('open')" class="node-card cursor-pointer rounded-xl p-4 w-full max-w-lg">
+        <div class="flex items-center justify-between">
+          <span class="mono text-[10px] font-medium uppercase px-2 py-0.5 rounded badge-lavender">
+            Steps 5.2 &amp; 5.3 • Factual Colleague Sample JSON
+          </span>
+          <svg class="chevron w-4 h-4 transition-transform" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <h3 class="text-sm font-semibold mt-2" style="color: var(--text-primary);">Fetch Up to 10 Colleagues per <code>Company Record ID</code></h3>
+        <p class="text-xs mt-1 leading-relaxed" style="color: var(--text-secondary);">For rows with non-Accepted statuses (<code>catch-all</code>, <code>greylisted</code>, <code>mx-error</code>, <code>SPAM block</code>), retrieves up to 10 factual colleague emails from HubSpot (excluding the target contact) and writes temporary JSON.</p>
+        <div class="details-drawer pt-2.5 text-[11px] space-y-1 mono" style="border-top: 1px solid var(--border-main); color: var(--text-secondary);">
+          <div><span style="color: var(--text-muted);">17 Canonical Patterns:</span> first.last, flast, f.last, first_last, last.first, etc.</div>
+          <div><span style="color: var(--text-muted);">Self-Exclusion:</span> Target contact never used as evidence for their own pattern</div>
+        </div>
+      </div>
+
+      <div class="w-px h-4 tree-stem"></div>
+      <div class="w-2/3 h-3 border-t border-l border-r tree-branch rounded-t"></div>
+
+      <!-- 3 Confidence Outcomes -->
+      <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="rounded-xl p-3 badge-sage text-center">
+          <span class="mono text-[10px] uppercase font-semibold block">&ge;2 Colleagues &amp; &ge;70% Share</span>
+          <div class="mono text-xs font-semibold mt-1" style="color: var(--text-primary);">High Confidence</div>
+          <p class="text-[11px] mt-1" style="color: var(--text-secondary);">Writes dominant format to <code>Claude Guess</code> (or leaves blank if original email already matches).</p>
+        </div>
+
+        <div class="rounded-xl p-3 badge-sand text-center">
+          <span class="mono text-[10px] uppercase font-semibold block">1 Sample or &lt;70% Share</span>
+          <div class="mono text-xs font-semibold mt-1" style="color: var(--text-primary);">Low Confidence</div>
+          <p class="text-[11px] mt-1" style="color: var(--text-secondary);">Populates <code>Claude Guess</code> from dominant pattern; leaves guess blank if tied.</p>
+        </div>
+
+        <div class="rounded-xl p-3 badge-rose text-center">
+          <span class="mono text-[10px] uppercase font-semibold block">0 Usable Colleagues</span>
+          <div class="mono text-xs font-semibold mt-1" style="color: var(--text-primary);">Leave Cells Blank</div>
+          <p class="text-[11px] mt-1" style="color: var(--text-secondary);">Never fabricates a pattern without factual HubSpot colleague evidence.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="w-px h-6 tree-stem"></div>
+
+    <!-- 4. FINAL OUTPUT -->
+    <div class="w-full max-w-lg rounded-xl p-5 badge-sage shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <span class="mono text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded" style="background: rgba(0,0,0,0.12);">
+          ✅ Final Defined Output (Enriched .xlsx Workbook)
+        </span>
+        <span class="mono text-[11px] font-medium">Auto-Fitted Excel</span>
+      </div>
+      <ul class="text-xs space-y-1.5 mt-3 list-disc list-inside leading-relaxed" style="color: var(--text-primary);">
+        <li><strong>CRM Enrichment Columns:</strong> <code>Company Record ID</code> (Yellow on close match), <code>Number of Contacts</code>, <code>Contact Record ID</code> (formatted as Text <code>@</code>), <code>Last Contacted</code> (Red/Green fill), and <code>DEAL</code>.</li>
+        <li><strong>Pattern Analysis Columns:</strong> Inserts <code>Claude Guess</code> and <code>Claude Confidence</code> immediately after <code>Email Address</code> without modifying original emails.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <script>
+    let allOpen = false;
+    function toggleAll() {
+      allOpen = !allOpen;
+      document.querySelectorAll('.node-card').forEach(card => {
+        if (allOpen) card.classList.add('open');
+        else card.classList.remove('open');
+      });
+      document.getElementById('toggleBtn').textContent = allOpen ? 'Collapse All Specs' : 'Expand All Specs';
+    }
+    function toggleTheme() {
+      document.body.classList.toggle('light-theme');
+      const isLight = document.body.classList.contains('light-theme');
+      document.getElementById('themeBtn').textContent = isLight ? '🌙 Dark' : '☀️ Paper';
+    }
+  </script>
+</body>
+</html>
