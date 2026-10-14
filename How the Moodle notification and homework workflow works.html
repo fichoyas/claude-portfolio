@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How the Moodle notification and homework workflow works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F3F5F8;
+    --surface: #FFFFFF;
+    --ink: #14213D;
+    --muted: #4F5C73;
+    --line: #AEBACB;
+    --soft: #E6EBF2;
+    --files: #55658A;
+    --match: #0B7A83;
+    --hub: #4A4EC2;
+    --script: #A0386F;
+    --plan: #6B7587;
+    --apollo: #B4570F;
+    --mail: #2E7D32;
+    --yellow: #FFFF00;
+    --red: #FF0000;
+    --green: #00B050;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0E1624; --surface: #16233A; --ink: #E9EEF6; --muted: #A3B0C4;
+      --line: #3A4B67; --soft: #1E2E49;
+      --files: #8FA2CC; --match: #4CC3CC; --hub: #9EA2FF; --script: #F08CC0; --plan: #8D98AD; --apollo: #F4A261; --mail: #6FCF8C;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0E1624; --surface: #16233A; --ink: #E9EEF6; --muted: #A3B0C4;
+    --line: #3A4B67; --soft: #1E2E49;
+    --files: #8FA2CC; --match: #4CC3CC; --hub: #9EA2FF; --script: #F08CC0; --plan: #8D98AD; --apollo: #F4A261; --mail: #6FCF8C;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 36px 20px 64px; }
+  h1, h2, h3 { font-family: "Newsreader", Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.2; margin: 0; }
+  h1 { font-size: clamp(30px, 4.5vw, 46px); max-width: 22ch; }
+  h2 { font-size: 22px; }
+  h3 { font-size: 17px; }
+  p { margin: 0; }
+  .lede { margin-top: 14px; max-width: 64ch; font-size: 18px; color: var(--muted); }
+
+  /* controls + legend */
+  .bar { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin-top: 26px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 14px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid rgba(0,0,0,.25); }
+  button.toggle {
+    font: inherit; font-weight: 600; font-size: 14px; color: var(--ink);
+    background: var(--surface); border: 2px solid var(--ink); border-radius: 999px;
+    padding: 7px 16px; cursor: pointer;
+  }
+  button.toggle:hover { background: var(--soft); }
+  button.toggle:focus-visible, a:focus-visible { outline: 3px solid var(--hub); outline-offset: 2px; }
+
+  /* start: inputs */
+  .start { margin-top: 34px; }
+  .start h2 { margin-bottom: 4px; }
+  .start > p { color: var(--muted); max-width: 70ch; }
+  .inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+  .input {
+    background: var(--surface); border: 1px solid var(--line); border-top: 6px solid var(--files);
+    border-radius: 10px; padding: 14px 18px;
+  }
+  .input p { color: var(--muted); font-size: 15px; margin-top: 4px; }
+
+  /* the tree */
+  .tree { position: relative; margin: 26px 0 0; padding-left: 64px; }
+  .tree::before {
+    content: ""; position: absolute; left: 22px; top: -26px; bottom: 0; width: 4px;
+    background: var(--ink); border-radius: 2px;
+  }
+  .step { --c: var(--files); position: relative; display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); column-gap: 56px; margin-bottom: 44px; }
+  .step.match { --c: var(--match); }
+  .step.hub { --c: var(--hub); }
+  .step.script { --c: var(--script); }
+  .step.plan { --c: var(--plan); }
+  .step.apollo { --c: var(--apollo); }
+  .step.mail { --c: var(--mail); }
+  .marker {
+    position: absolute; left: -64px; top: 4px; width: 48px; height: 48px; border-radius: 50%;
+    background: var(--c); color: #fff; display: grid; place-items: center;
+    font-family: "Newsreader", Georgia, serif; font-weight: 700; font-size: 22px;
+    border: 4px solid var(--paper);
+  }
+  .card {
+    position: relative; align-self: start; background: var(--surface);
+    border: 1px solid var(--line); border-left: 6px solid var(--c); border-radius: 10px; padding: 16px 18px 14px;
+  }
+  .card::after { content: ""; position: absolute; right: -29px; top: 26px; width: 29px; height: 4px; background: var(--line); }
+  .tag {
+    display: inline-block; margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--c);
+    border: 1.5px solid var(--c); border-radius: 999px; padding: 1px 10px;
+  }
+  .does { margin-top: 10px; font-size: 15.5px; }
+  .result { margin-top: 12px; padding-top: 10px; border-top: 1.5px dashed var(--line); font-size: 15px; }
+  .result b { color: var(--c); }
+  .branches { position: relative; display: grid; gap: 12px; align-content: start; }
+  .branches::before { content: ""; position: absolute; left: -29px; top: 26px; bottom: 26px; width: 4px; background: var(--line); border-radius: 2px; }
+  .leaf {
+    position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px;
+  }
+  .leaf::before { content: ""; position: absolute; left: -29px; top: 22px; width: 29px; height: 4px; background: var(--line); }
+  .leaf h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+  .leaf h3 small { font-family: "Figtree", system-ui, sans-serif; font-size: 13px; font-weight: 600; color: var(--c); }
+  .leaf p { margin-top: 3px; font-size: 15px; color: var(--muted); }
+  .leaf p b { color: var(--ink); font-weight: 600; }
+  .leaf.stop { border-style: dashed; background: transparent; }
+  .chip { display: inline-block; border-radius: 4px; padding: 0 7px; font-weight: 600; font-size: 13.5px; color: #111; border: 1px solid rgba(0,0,0,.25); }
+  .chip.y { background: var(--yellow); }
+  .chip.r { background: var(--red); color: #fff; }
+  .chip.g { background: var(--green); color: #fff; }
+  .note { margin-top: 12px; font-size: 14.5px; color: var(--muted); }
+  .step.plan .card { border-style: dashed; border-left-style: solid; background: transparent; }
+  .step.plan .leaf { border-style: dashed; background: transparent; }
+
+  /* simple view */
+  body.simple .branches { display: none; }
+  body.simple .card::after { display: none; }
+  body.simple .step { grid-template-columns: minmax(0, 640px); margin-bottom: 26px; }
+  body.simple .does { margin-top: 8px; }
+  body.simple .out-detail { display: none; }
+
+  /* output */
+  .output { margin-top: 10px; position: relative; }
+  .out-card { background: var(--surface); border: 2px solid var(--ink); border-radius: 12px; padding: 22px 24px; }
+  .out-card h2 { font-size: 26px; }
+  .out-card > p { margin-top: 8px; max-width: 74ch; color: var(--muted); }
+  .out-card > p b { color: var(--ink); }
+  .tbl-wrap { margin-top: 18px; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 14px; }
+  caption { text-align: left; padding: 8px 12px; font-size: 13.5px; color: var(--muted); caption-side: top; }
+  th, td { padding: 8px 12px; border-top: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { background: var(--soft); font-weight: 600; }
+  th.new { box-shadow: inset 0 -4px 0 var(--hub); }
+  td.c { text-align: center; }
+  td.blank { color: var(--muted); }
+  td.fy { background: var(--yellow); color: #111; }
+  td.fr { background: var(--red); color: #fff; }
+  td.fg { background: var(--green); color: #fff; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 28px; margin: 20px 0 0; }
+  .cols div { border-left: 4px solid var(--hub); padding: 2px 0 2px 12px; }
+  .cols dt { font-weight: 700; }
+  .cols dd { margin: 2px 0 0; font-size: 15px; color: var(--muted); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 22px; }
+  .stat { background: var(--soft); border-radius: 8px; padding: 12px 14px; }
+  .stat b { display: block; font-family: "Newsreader", Georgia, serif; font-size: 30px; line-height: 1.1; }
+  .stat span { font-size: 14px; color: var(--muted); }
+  .stats-title { margin-top: 24px; font-weight: 600; }
+
+  .foot { margin-top: 30px; font-size: 14px; color: var(--muted); max-width: 70ch; }
+
+  @media (max-width: 860px) {
+    .inputs { grid-template-columns: 1fr; }
+    .step { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
+    .card::after, .branches::before, .leaf::before { display: none; }
+    .branches { border-left: 4px solid var(--line); padding-left: 14px; }
+    .tree { padding-left: 54px; }
+    .tree::before { left: 17px; }
+    .marker { left: -54px; width: 42px; height: 42px; font-size: 19px; }
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .marker { color: #0E1624; } }
+  :root[data-theme="dark"] .marker { color: #0E1624; }
+  @media print {
+    body { background: #fff; color: #000; }
+    button.toggle { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>How the Moodle notification and homework workflow works</h1>
+    <p class="lede">Twice a week the workflow checks Moodle for anything new, saves new documents to your computer and messages you on WhatsApp. If you answer "run", a second skill called Homework master files the material by course and prepares the work or a study summary. Each numbered step below does one job, and what you receive is at the bottom.</p>
+    <div class="bar">
+      <button class="toggle" id="toggle" type="button" aria-pressed="false">Show short version</button>
+      <div class="legend" aria-label="Colour key for the steps">
+        <span><i class="sw" style="background:var(--files)"></i>Works on the files only</span>
+        <span><i class="sw" style="background:var(--match)"></i>Compares dates and decides</span>
+        <span><i class="sw" style="background:var(--apollo)"></i>Asks Moodle and runs a script</span>
+        <span><i class="sw" style="background:var(--mail)"></i>Messages you on WhatsApp</span>
+        <span><i class="sw" style="background:var(--hub)"></i>Uses the Homework master skill</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="start" aria-labelledby="start-h">
+    <h2 id="start-h">Start: the clock and one script</h2>
+    <p>Nothing needs to be uploaded. The workflow starts on its own every Monday and Friday at 15:00.</p>
+    <div class="inputs">
+      <div class="input"><h3>Moodle connection script</h3><p>A Python script holding the Moodle and WhatsApp connection details. Those details are not shown here.</p></div>
+      <div class="input"><h3>Purpose description</h3><p>A context file that explains what the workflow is for.</p></div>
+      <div class="input"><h3>Course Content depository</h3><p>Your collection of course material, one folder per course.</p></div>
+      <div class="input"><h3>Your WhatsApp number</h3><p>Where every message is sent, and where your "run" or "no" answer comes from.</p></div>
+    </div>
+  </section>
+
+  <main class="tree">
+
+    <!-- STEP 1 -->
+    <section class="step apollo">
+      <div class="marker" aria-hidden="true">1</div>
+      <div class="card">
+        <h2>Wake up and read Moodle</h2>
+        <span class="tag">Asks Moodle and runs a script</span>
+        <p class="does">Every <b>Monday and Friday at 15:00</b> the workflow starts by itself. A script connects to Moodle, the university learning platform, and reads every folder of every course you are enrolled in.</p>
+        <p class="result"><b>Result:</b> a complete picture of what is on Moodle right now.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>1a. When it runs</h3><p>Automatically, twice a week. You do not have to start it.</p></div>
+        <div class="leaf"><h3>1b. What it reads</h3><p>All folders of all available courses: lecture slides, exercises, announcements and new sections.</p></div>
+        <div class="leaf"><h3>1c. How it connects</h3><p>Through the Moodle connection stored in the attached script. The login details stay in the script and are not shown on this page.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="step match">
+      <div class="marker" aria-hidden="true">2</div>
+      <div class="card">
+        <h2>Spot what is new</h2>
+        <span class="tag">Compares dates and decides</span>
+        <p class="does">Checks the upload date of every item against the date of the <b>previous run</b>. Only items uploaded after that date count as new.</p>
+        <p class="result"><b>Result:</b> a short list of new documents, new sections and new announcements.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>2a. New documents</h3><p>Files uploaded after the last run.</p></div>
+        <div class="leaf"><h3>2b. New sections</h3><p>Course sections that did not exist at the last run.</p></div>
+        <div class="leaf"><h3>2c. New announcements</h3><p>News posted in a course Announcements forum after the last run.</p></div>
+        <div class="leaf stop"><h3>Nothing new</h3><p>The run ends quietly. You are not messaged and nothing is downloaded.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section class="step">
+      <div class="marker" aria-hidden="true">3</div>
+      <div class="card">
+        <h2>Save the new documents to your computer</h2>
+        <span class="tag">Works on the files only</span>
+        <p class="does">Downloads every newly attached document to <b>local disk D</b>, so you always have your own copy.</p>
+        <p class="result"><b>Result:</b> the new files, saved on disk D.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>3a. What is saved</h3><p>Only documents that are new since the last run, not everything again.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="step mail">
+      <div class="marker" aria-hidden="true">4</div>
+      <div class="card">
+        <h2>Tell you about announcements</h2>
+        <span class="tag">Messages you on WhatsApp</span>
+        <p class="does">If a course posted news in its Announcements, the workflow sends a WhatsApp message to your number straight away.</p>
+        <p class="result"><b>Result:</b> a WhatsApp message with the announcement news.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>4a. When it is sent</h3><p>Only when there is at least one new announcement.</p></div>
+        <div class="leaf"><h3>4b. What it says</h3><p>Which course posted the news and what the news is, in a short message.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 5 -->
+    <section class="step mail">
+      <div class="marker" aria-hidden="true">5</div>
+      <div class="card">
+        <h2>Summarise the new material and ask you</h2>
+        <span class="tag">Messages you on WhatsApp</span>
+        <p class="does">If there are new documents or sections, the workflow writes a short summary of what was uploaded, sends it to your WhatsApp and asks what to do next.</p>
+        <p class="result"><b>Result:</b> a WhatsApp message with the summary and a question: <b>"run"</b> or <b>"no"</b>.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>5a. The summary</h3><p>Which course, which new documents or sections, in plain language.</p></div>
+        <div class="leaf"><h3>5b. The question</h3><p>You decide: reply <b>run</b> to have the new material processed, or <b>no</b> to skip it.</p></div>
+        <div class="leaf stop"><h3>Waiting for you</h3><p>Nothing further happens until you reply. You stay in control.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 6 -->
+    <section class="step">
+      <div class="marker" aria-hidden="true">6</div>
+      <div class="card">
+        <h2>Your answer decides</h2>
+        <span class="tag">Works on the files only</span>
+        <p class="does">Reads your WhatsApp reply and follows one of two paths.</p>
+        <p class="result"><b>Result:</b> either the next step starts, or the run is logged and closed.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>6a. You reply "run"</h3><p>The workflow hands over to the Homework master skill (steps 7 and 8).</p></div>
+        <div class="leaf stop"><h3>6b. You reply "no"</h3><p>The workflow writes two dates into its log: the <b>upload date</b> of the new materials on the Moodle page, and the <b>date of this workflow run</b>. That run date is what the next run compares against.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 7 -->
+    <section class="step">
+      <div class="marker" aria-hidden="true">7</div>
+      <div class="card">
+        <h2>File the materials by course</h2>
+        <span class="tag">Works on the files only</span>
+        <p class="does">Only after "run". Uploads the new materials into the data depository called <b>Course Content</b> and puts each one in the folder named after the course that published it.</p>
+        <p class="result"><b>Result:</b> the new materials sit in the right course folder in Course Content.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>7a. Matching</h3><p>The folder whose name contains the course name receives the material.</p></div>
+        <div class="leaf"><h3>7b. Why</h3><p>Homework master can then use everything you have collected for a course, not only the newest file.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 8 -->
+    <section class="step hub">
+      <div class="marker" aria-hidden="true">8</div>
+      <div class="card">
+        <h2>Homework master does the work</h2>
+        <span class="tag">Uses the Homework master skill</span>
+        <p class="does">A second skill reads what was sent, looks into Course Content and completes what the new materials ask for. If nothing is asked, it prepares a study summary instead.</p>
+        <p class="result"><b>Result:</b> finished work or an in-depth summary, plus a list of things to know before the week.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>8a. Understand the job</h3><p>Reads the information handed over by the workflow and works out what is needed.</p></div>
+        <div class="leaf"><h3>8b. Open Course Content</h3><p>Calls the data depository so it can use all material collected so far.</p></div>
+        <div class="leaf"><h3>8c. There is a specific task</h3><p>It completes the task described in the new materials, using everything available in Course Content.</p></div>
+        <div class="leaf"><h3>8d. There is no specific task</h3><p>It reads the new lecture or exercise content, writes an <b>in-depth summary</b> and sends it to your WhatsApp.</p></div>
+        <div class="leaf"><h3>8e. Before the new week</h3><p>Finishes with bullet points: anything you need to know before the new week and the next classes begin.</p></div>
+      </div>
+    </section>
+
+    <!-- OUTPUT -->
+    <section class="output" aria-labelledby="out-h">
+      <div class="marker" aria-hidden="true" style="background:var(--ink);color:var(--paper);font-size:18px">End</div>
+      <div class="out-card">
+        <h2 id="out-h">Output: messages, saved files and a log</h2>
+        <p>You get <b>WhatsApp messages and saved files, not a report</b>: news alerts, a summary of new material with a question, and after "run" the finished work or an in-depth summary. New documents are on disk D and filed by course.</p>
+
+        <div class="out-detail">
+          <div class="tbl-wrap">
+            <table>
+              <caption>Example messages with made-up data. The workflow sends up to three kinds.</caption>
+              <thead><tr><th>When</th><th class="new">Message</th><th class="new">Content</th><th>Needs your reply?</th></tr></thead>
+              <tbody>
+                <tr><td>Mon 15:00</td><td>News alert</td><td>Course "Statistics I": the exam room has changed to room B2.</td><td>No</td></tr>
+                <tr><td>Mon 15:00</td><td>New material</td><td>2 new documents in "Databases": Lecture 5 slides and Exercise sheet 4. Reply run or no.</td><td>Yes: run / no</td></tr>
+                <tr><td>After "run"</td><td>Result</td><td>Summary of Lecture 5, or the finished exercise, plus a list of what to know for the week.</td><td>No</td></tr>
+                <tr><td>After "no"</td><td>Nothing sent</td><td>Dates of upload and of this run are written to the log.</td><td class="blank">none</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <dl class="cols">
+            <div><dt>News alert</dt><dd>Sent when a course posts an announcement. It only informs you.</dd></div>
+            <div><dt>New material message</dt><dd>Lists what was uploaded and asks <b>run</b> or <b>no</b>. This is the only message that needs an answer.</dd></div>
+            <div><dt>Result message</dt><dd>Sent after "run". Contains the finished work or the in-depth summary, plus bullet points for the coming week.</dd></div>
+            <div><dt>Files on disk D</dt><dd>A copy of every new document, saved right after the check.</dd></div>
+            <div><dt>Course Content depository</dt><dd>Grows over time. One folder per course, filled only after you answer "run".</dd></div>
+            <div><dt>Log</dt><dd>After "no", the upload date and the run date are recorded, so the next run only reports what is newer.</dd></div>
+            <div><dt>Colours</dt><dd>No coloured cells. The colours on this page only show how each step works.</dd></div>
+          </dl>
+        </div>
+
+        <p class="stats-title">Example of one Monday run (made-up numbers)</p>
+        <div class="stats">
+          <div class="stat"><b>6</b><span>courses checked</span></div>
+          <div class="stat"><b>3</b><span>new documents found</span></div>
+          <div class="stat"><b>1</b><span>announcement sent</span></div>
+          <div class="stat"><b>1</b><span>reply: run</span></div>
+        </div>
+        <p class="foot">The numbers above are only an example. This page is based on a written description of the workflow, not on a skill file.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  (function () {
+    var btn = document.getElementById('toggle');
+    btn.addEventListener('click', function () {
+      var simple = document.body.classList.toggle('simple');
+      btn.setAttribute('aria-pressed', simple ? 'true' : 'false');
+      btn.textContent = simple ? 'Show full detail' : 'Show short version';
+    });
+  })();
+</script>
+</body>
+</html>

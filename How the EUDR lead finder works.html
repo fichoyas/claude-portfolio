@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How the EUDR lead finder works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F3F5F8;
+    --surface: #FFFFFF;
+    --ink: #14213D;
+    --muted: #4F5C73;
+    --line: #AEBACB;
+    --soft: #E6EBF2;
+    --files: #55658A;
+    --match: #0B7A83;
+    --hub: #4A4EC2;
+    --script: #A0386F;
+    --plan: #6B7587;
+    --apollo: #B4570F;
+    --mail: #2E7D32;
+    --yellow: #FFFF00;
+    --red: #FF0000;
+    --green: #00B050;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0E1624; --surface: #16233A; --ink: #E9EEF6; --muted: #A3B0C4;
+      --line: #3A4B67; --soft: #1E2E49;
+      --files: #8FA2CC; --match: #4CC3CC; --hub: #9EA2FF; --script: #F08CC0; --plan: #8D98AD; --apollo: #F4A261; --mail: #6FCF8C;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0E1624; --surface: #16233A; --ink: #E9EEF6; --muted: #A3B0C4;
+    --line: #3A4B67; --soft: #1E2E49;
+    --files: #8FA2CC; --match: #4CC3CC; --hub: #9EA2FF; --script: #F08CC0; --plan: #8D98AD; --apollo: #F4A261; --mail: #6FCF8C;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 36px 20px 64px; }
+  h1, h2, h3 { font-family: "Newsreader", Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.2; margin: 0; }
+  h1 { font-size: clamp(30px, 4.5vw, 46px); max-width: 22ch; }
+  h2 { font-size: 22px; }
+  h3 { font-size: 17px; }
+  p { margin: 0; }
+  .lede { margin-top: 14px; max-width: 64ch; font-size: 18px; color: var(--muted); }
+
+  /* controls + legend */
+  .bar { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin-top: 26px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 14px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid rgba(0,0,0,.25); }
+  button.toggle {
+    font: inherit; font-weight: 600; font-size: 14px; color: var(--ink);
+    background: var(--surface); border: 2px solid var(--ink); border-radius: 999px;
+    padding: 7px 16px; cursor: pointer;
+  }
+  button.toggle:hover { background: var(--soft); }
+  button.toggle:focus-visible, a:focus-visible { outline: 3px solid var(--hub); outline-offset: 2px; }
+
+  /* start: inputs */
+  .start { margin-top: 34px; }
+  .start h2 { margin-bottom: 4px; }
+  .start > p { color: var(--muted); max-width: 70ch; }
+  .inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+  .input {
+    background: var(--surface); border: 1px solid var(--line); border-top: 6px solid var(--files);
+    border-radius: 10px; padding: 14px 18px;
+  }
+  .input p { color: var(--muted); font-size: 15px; margin-top: 4px; }
+
+  /* the tree */
+  .tree { position: relative; margin: 26px 0 0; padding-left: 64px; }
+  .tree::before {
+    content: ""; position: absolute; left: 22px; top: -26px; bottom: 0; width: 4px;
+    background: var(--ink); border-radius: 2px;
+  }
+  .step { --c: var(--files); position: relative; display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); column-gap: 56px; margin-bottom: 44px; }
+  .step.match { --c: var(--match); }
+  .step.hub { --c: var(--hub); }
+  .step.script { --c: var(--script); }
+  .step.plan { --c: var(--plan); }
+  .step.apollo { --c: var(--apollo); }
+  .step.mail { --c: var(--mail); }
+  .marker {
+    position: absolute; left: -64px; top: 4px; width: 48px; height: 48px; border-radius: 50%;
+    background: var(--c); color: #fff; display: grid; place-items: center;
+    font-family: "Newsreader", Georgia, serif; font-weight: 700; font-size: 22px;
+    border: 4px solid var(--paper);
+  }
+  .card {
+    position: relative; align-self: start; background: var(--surface);
+    border: 1px solid var(--line); border-left: 6px solid var(--c); border-radius: 10px; padding: 16px 18px 14px;
+  }
+  .card::after { content: ""; position: absolute; right: -29px; top: 26px; width: 29px; height: 4px; background: var(--line); }
+  .tag {
+    display: inline-block; margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--c);
+    border: 1.5px solid var(--c); border-radius: 999px; padding: 1px 10px;
+  }
+  .does { margin-top: 10px; font-size: 15.5px; }
+  .result { margin-top: 12px; padding-top: 10px; border-top: 1.5px dashed var(--line); font-size: 15px; }
+  .result b { color: var(--c); }
+  .branches { position: relative; display: grid; gap: 12px; align-content: start; }
+  .branches::before { content: ""; position: absolute; left: -29px; top: 26px; bottom: 26px; width: 4px; background: var(--line); border-radius: 2px; }
+  .leaf {
+    position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px;
+  }
+  .leaf::before { content: ""; position: absolute; left: -29px; top: 22px; width: 29px; height: 4px; background: var(--line); }
+  .leaf h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+  .leaf h3 small { font-family: "Figtree", system-ui, sans-serif; font-size: 13px; font-weight: 600; color: var(--c); }
+  .leaf p { margin-top: 3px; font-size: 15px; color: var(--muted); }
+  .leaf p b { color: var(--ink); font-weight: 600; }
+  .leaf.stop { border-style: dashed; background: transparent; }
+  .chip { display: inline-block; border-radius: 4px; padding: 0 7px; font-weight: 600; font-size: 13.5px; color: #111; border: 1px solid rgba(0,0,0,.25); }
+  .chip.y { background: var(--yellow); }
+  .chip.r { background: var(--red); color: #fff; }
+  .chip.g { background: var(--green); color: #fff; }
+  .note { margin-top: 12px; font-size: 14.5px; color: var(--muted); }
+  .step.plan .card { border-style: dashed; border-left-style: solid; background: transparent; }
+  .step.plan .leaf { border-style: dashed; background: transparent; }
+
+  /* simple view */
+  body.simple .branches { display: none; }
+  body.simple .card::after { display: none; }
+  body.simple .step { grid-template-columns: minmax(0, 640px); margin-bottom: 26px; }
+  body.simple .does { margin-top: 8px; }
+  body.simple .out-detail { display: none; }
+
+  /* output */
+  .output { margin-top: 10px; position: relative; }
+  .out-card { background: var(--surface); border: 2px solid var(--ink); border-radius: 12px; padding: 22px 24px; }
+  .out-card h2 { font-size: 26px; }
+  .out-card > p { margin-top: 8px; max-width: 74ch; color: var(--muted); }
+  .out-card > p b { color: var(--ink); }
+  .tbl-wrap { margin-top: 18px; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 14px; }
+  caption { text-align: left; padding: 8px 12px; font-size: 13.5px; color: var(--muted); caption-side: top; }
+  th, td { padding: 8px 12px; border-top: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { background: var(--soft); font-weight: 600; }
+  th.new { box-shadow: inset 0 -4px 0 var(--hub); }
+  td.c { text-align: center; }
+  td.blank { color: var(--muted); }
+  td.fy { background: var(--yellow); color: #111; }
+  td.fr { background: var(--red); color: #fff; }
+  td.fg { background: var(--green); color: #fff; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 28px; margin: 20px 0 0; }
+  .cols div { border-left: 4px solid var(--hub); padding: 2px 0 2px 12px; }
+  .cols dt { font-weight: 700; }
+  .cols dd { margin: 2px 0 0; font-size: 15px; color: var(--muted); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 22px; }
+  .stat { background: var(--soft); border-radius: 8px; padding: 12px 14px; }
+  .stat b { display: block; font-family: "Newsreader", Georgia, serif; font-size: 30px; line-height: 1.1; }
+  .stat span { font-size: 14px; color: var(--muted); }
+  .stats-title { margin-top: 24px; font-weight: 600; }
+
+  .foot { margin-top: 30px; font-size: 14px; color: var(--muted); max-width: 70ch; }
+
+  @media (max-width: 860px) {
+    .inputs { grid-template-columns: 1fr; }
+    .step { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
+    .card::after, .branches::before, .leaf::before { display: none; }
+    .branches { border-left: 4px solid var(--line); padding-left: 14px; }
+    .tree { padding-left: 54px; }
+    .tree::before { left: 17px; }
+    .marker { left: -54px; width: 42px; height: 42px; font-size: 19px; }
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .marker { color: #0E1624; } }
+  :root[data-theme="dark"] .marker { color: #0E1624; }
+  @media print {
+    body { background: #fff; color: #000; }
+    button.toggle { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>How the EUDR lead finder works</h1>
+    <p class="lede">The skill finds new sales contacts for our EUDR solution (software that helps companies prove their products did not cause deforestation). It searches Apollo, checks HubSpot so nobody is contacted twice too soon, and delivers a ranked CSV file. Each numbered step below does one job, and the finished file is at the bottom.</p>
+    <div class="bar">
+      <button class="toggle" id="toggle" type="button" aria-pressed="false">Show short version</button>
+      <div class="legend" aria-label="Colour key for the steps">
+        <span><i class="sw" style="background:var(--files)"></i>Works on its own</span>
+        <span><i class="sw" style="background:var(--apollo)"></i>Asks Apollo</span>
+        <span><i class="sw" style="background:var(--hub)"></i>Asks HubSpot</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="start" aria-labelledby="start-h">
+    <h2 id="start-h">Start: one short sentence goes in</h2>
+    <p>You write a request such as <b>"20 EUDR leads for Germany"</b> or <b>"find EUDR rhinos in Belgium"</b>. The word EUDR and a place are needed. The skill starts automatically.</p>
+    <div class="inputs">
+      <div class="input"><h3>Number of contacts</h3><p>How many leads you want, or an animal that implies it. If left out, the skill asks.</p></div>
+      <div class="input"><h3>Place</h3><p>A country or a region such as DACH or BENELUX.</p></div>
+      <div class="input"><h3>Company size (optional)</h3><p>Whale, Elephant, Rhino, Bear or Fox. Without it, all sizes from Fox to Elephant are searched.</p></div>
+      <div class="input"><h3>Connections it uses</h3><p>Apollo (contact database) and HubSpot (our CRM). Neither is changed. They are only read.</p></div>
+    </div>
+  </section>
+
+  <main class="tree">
+
+    <!-- STEP 1 -->
+    <section class="step">
+      <div class="marker" aria-hidden="true">1</div>
+      <div class="card">
+        <h2>Understand your request</h2>
+        <span class="tag">Works on its own</span>
+        <p class="does">Picks three facts out of your message: how many contacts you want, where to look, and (optionally) how big the companies should be. If the number is missing, it asks you before doing anything else.</p>
+        <p class="result"><b>Result:</b> a clear search brief: <b>number</b>, <b>location</b> and <b>company size</b>.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>1a. How many contacts</h3><p>Said directly ("20 leads") or implied by the size animal. If it is missing, the skill asks <b>"How many contacts would you like?"</b> and waits.</p></div>
+        <div class="leaf"><h3>1b. Where to look</h3><p>A country or a region. <b>DACH</b> means Germany, Austria and Switzerland. <b>BENELUX</b> means Belgium, the Netherlands and Luxembourg. If missing, the skill asks which country or region.</p></div>
+        <div class="leaf"><h3>1c. Company size, named after animals <small>optional</small></h3><p>Taken from the osapiens Sales Playbook. <b>Whale</b>: over 25,000 employees <i>and</i> over $10bn revenue. <b>Elephant</b>: 10,000 to 25,000 employees or $5bn to $10bn. <b>Rhino</b>: 3,000 to 10,000 or $2bn to $5bn. <b>Bear</b>: 750 to 3,000 or $500m to $2bn. <b>Fox</b>: under 750 or under $500m.</p></div>
+        <div class="leaf"><h3>No animal named</h3><p>The skill searches the whole range from Fox to Elephant. Whales are only searched when asked for, because they must meet both size conditions.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="step apollo">
+      <div class="marker" aria-hidden="true">2</div>
+      <div class="card">
+        <h2>Search for matching people</h2>
+        <span class="tag">Asks Apollo</span>
+        <p class="does">Asks Apollo, our contact database, for people who could buy the osapiens EUDR solution (the EU rules on deforestation-free products). It looks for decision makers in the right departments at companies that are affected by the rules.</p>
+        <p class="result"><b>Result:</b> a first list of contacts, up to the number you asked for.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>2a. Who counts as a decision maker</h3><p>Seniority from manager up to the top: <b>Manager, Director, Head of Department, VP, C-level</b>.</p></div>
+        <div class="leaf"><h3>2b. In which teams</h3><p>Sustainability, Supply Chain, Procurement, Compliance, Legal, ESG, Regulatory Affairs and Operations.</p></div>
+        <div class="leaf"><h3>2c. At which companies</h3><p>Industries such as Retail, Food &amp; Beverage, Manufacturing, Chemicals, Automotive, Paper &amp; Packaging, Furniture, Consumer Goods and Logistics. Best fits sell into the EU and deal with goods such as coffee, cocoa, wood, paper, rubber or products made from them.</p></div>
+        <div class="leaf stop"><h3>Companies that are left out</h3><p>No link to the EU market, no affected goods, pure software or service companies, or very small firms with no legal duty and no customer pressure.</p></div>
+        <div class="leaf"><h3>2d. If something goes wrong</h3><p>Fewer people found than asked: the skill tells you how many exist and asks whether to continue. None found: it says so and waits. Apollo error: it shows the message <b>"Upgrade Apollo API"</b>.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section class="step hub">
+      <div class="marker" aria-hidden="true">3</div>
+      <div class="card">
+        <h2>Check who we already know</h2>
+        <span class="tag">Asks HubSpot</span>
+        <p class="does">Looks up every contact in HubSpot, our CRM, so that we do not contact the same person twice in a short time.</p>
+        <p class="result"><b>Result:</b> the column <b>ENROLLED IN HS</b>, and a shorter list.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>3a. Search</h3><p>Each person is searched by email, and by full name together with the company website.</p></div>
+        <div class="leaf"><h3>3b. Sort into two groups</h3><p><b>Not enrolled</b>: not in HubSpot at all. <b>Enrolled</b>: already in HubSpot, and the date we last contacted them is noted.</p></div>
+        <div class="leaf stop"><h3>3c. Remove recent contacts</h3><p>Anyone contacted <b>within the last 30 days</b> is removed from the list completely.</p></div>
+        <div class="leaf"><h3>3d. If HubSpot is not reachable</h3><p>The skill shows <b>"HubSpot is not well connected"</b>.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="step">
+      <div class="marker" aria-hidden="true">4</div>
+      <div class="card">
+        <h2>Put the best leads first</h2>
+        <span class="tag">Works on its own</span>
+        <p class="does">Sorts the remaining people so the freshest opportunities are at the top.</p>
+        <p class="result"><b>Result:</b> an ordered list: new people first, then known people.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>4a. Top of the list</h3><p>Everyone who is <b>not</b> in HubSpot (brand-new leads).</p></div>
+        <div class="leaf"><h3>4b. Bottom of the list</h3><p>People already in HubSpot. The ones we contacted <b>longest ago</b> come first, the most recently contacted come last.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 5 -->
+    <section class="step apollo">
+      <div class="marker" aria-hidden="true">5</div>
+      <div class="card">
+        <h2>Fill in the contact details</h2>
+        <span class="tag">Asks Apollo</span>
+        <p class="does">Sends the shortened list back to Apollo to complete each person's profile.</p>
+        <p class="result"><b>Result:</b> a complete row of details for every person.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>5a. What is filled in</h3><p>Email, city and country, seniority, job title, company website and LinkedIn profile link.</p></div>
+        <div class="leaf stop"><h3>Nothing available</h3><p>The cell stays empty. The skill never makes up a detail.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 6 -->
+    <section class="step">
+      <div class="marker" aria-hidden="true">6</div>
+      <div class="card">
+        <h2>Create the CSV file</h2>
+        <span class="tag">Works on its own</span>
+        <p class="does">Writes everything into a spreadsheet-ready CSV file with 12 columns in a fixed order, and hands it to you as a download.</p>
+        <p class="result"><b>Result:</b> one CSV file, ready for outreach.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>6a. The 12 columns</h3><p>First Name, Last Name, Job Title, Seniority, Department, Email, LinkedIn URL, Company Name, Company Domain, Location, ENROLLED IN HS, Last Contacted Date.</p></div>
+        <div class="leaf"><h3>6b. File name</h3><p>Built from the request, for example <b>eudr-20-germany-2026-05-26.csv</b> (number, place, date).</p></div>
+        <div class="leaf"><h3>6c. Where it is saved</h3><p>In the folder <b>C:\Claude Skills\Claude Test EUDR ICP\</b>, and also shown in the chat as a download.</p></div>
+      </div>
+    </section>
+
+    <!-- STEP 7 -->
+    <section class="step">
+      <div class="marker" aria-hidden="true">7</div>
+      <div class="card">
+        <h2>Send a short summary</h2>
+        <span class="tag">Works on its own</span>
+        <p class="does">Finishes with a few lines in the chat so you see the outcome at a glance.</p>
+        <p class="result"><b>Result:</b> a summary of what was found, removed and delivered.</p>
+      </div>
+      <div class="branches">
+        <div class="leaf"><h3>7a. What the summary says</h3><p>Region searched, total contacts found, how many were removed (contacted in the last 30 days), how many are brand-new, how many are known but cold, and the file name.</p></div>
+      </div>
+    </section>
+
+    <!-- OUTPUT -->
+    <section class="output" aria-labelledby="out-h">
+      <div class="marker" aria-hidden="true" style="background:var(--ink);color:var(--paper);font-size:18px">End</div>
+      <div class="out-card">
+        <h2 id="out-h">Output: the ranked lead list (CSV file)</h2>
+        <p>You get <b>one CSV file with up to the number of contacts you asked for</b>, plus a short summary in the chat. New people are at the top, so you start with the freshest opportunities.</p>
+
+        <div class="out-detail">
+          <div class="tbl-wrap">
+            <table>
+              <caption>Example rows with made-up data. The columns about HubSpot are underlined.</caption>
+              <thead><tr><th>First Name</th><th>Last Name</th><th>Job Title</th><th>Company Name</th><th>Location</th><th>Email</th><th class="new">ENROLLED IN HS</th><th class="new">Last Contacted Date</th></tr></thead>
+              <tbody>
+                <tr><td>Anna</td><td>Beispiel</td><td>Head of Sustainability</td><td>Acme Timber GmbH</td><td>Hamburg, Germany</td><td>anna.beispiel@acme.example</td><td>No</td><td class="blank">empty</td></tr>
+                <tr><td>Bernd</td><td>Muster</td><td>Director Procurement</td><td>Shop Example AG</td><td>Zurich, Switzerland</td><td>bernd.muster@shop.example</td><td>No</td><td class="blank">empty</td></tr>
+                <tr><td>Carla</td><td>Probe</td><td>VP Supply Chain</td><td>Coffee Example BV</td><td>Rotterdam, Netherlands</td><td>carla.probe@coffee.example</td><td>Yes</td><td>2025-11-04</td></tr>
+                <tr><td>Dirk</td><td>Test</td><td>Chief Compliance Officer</td><td>Paper Example SA</td><td>Lyon, France</td><td>dirk.test@paper.example</td><td>Yes</td><td>2026-04-19</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <dl class="cols">
+            <div><dt>ENROLLED IN HS</dt><dd><b>No</b> means the person is not in HubSpot yet, a brand-new lead. <b>Yes</b> means we already know them.</dd></div>
+            <div><dt>Last Contacted Date</dt><dd>Only filled for people marked Yes. It shows when we last contacted them. Nobody in the file was contacted in the last 30 days.</dd></div>
+            <div><dt>Order of the rows</dt><dd>New people (No) are at the top. Known people (Yes) follow, with the longest-ago contact first.</dd></div>
+            <div><dt>Contact details</dt><dd>Name, job title, seniority, department, email, LinkedIn and location. Empty when Apollo had no data.</dd></div>
+            <div><dt>Company details</dt><dd>Company name and website, so you can judge the fit.</dd></div>
+            <div><dt>Colours</dt><dd>This file has no coloured cells. The meaning is in the Yes / No column and in the order of the rows.</dd></div>
+          </dl>
+        </div>
+
+        <p class="stats-title">Example summary message (made-up numbers)</p>
+        <div class="stats">
+          <div class="stat"><b>40</b><span>contacts found in Apollo</span></div>
+          <div class="stat"><b>6</b><span>removed, contacted in the last 30 days</span></div>
+          <div class="stat"><b>22</b><span>brand-new, not in HubSpot</span></div>
+          <div class="stat"><b>12</b><span>known but cold, worth re-engaging</span></div>
+        </div>
+        <p class="foot">The summary also names the file, for example eudr-20-germany-2026-05-26.csv. The numbers above are only an example: 40 found minus 6 removed leaves 34 (22 + 12).</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  (function () {
+    var btn = document.getElementById('toggle');
+    btn.addEventListener('click', function () {
+      var simple = document.body.classList.toggle('simple');
+      btn.setAttribute('aria-pressed', simple ? 'true' : 'false');
+      btn.textContent = simple ? 'Show full detail' : 'Show short version';
+    });
+  })();
+</script>
+</body>
+</html>
